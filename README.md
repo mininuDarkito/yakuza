@@ -1,1 +1,2 @@
 # nu# yakuza
+# discord
