@@ -78,7 +78,7 @@ export function DashboardNav({ user }: NavProps) {
         <div className="mr-4 hidden md:flex">
           <Link href="/dashboard" className="mr-6 flex items-center gap-2">
             <ShoppingCart className="h-6 w-6 text-primary" />
-            <span className="font-black uppercase italic tracking-tighter">Nexus</span>
+            <span className="font-black uppercase italic tracking-tighter">Yakuza Raws</span>
           </Link>
           <nav className="flex items-center gap-1">
             {navItems.map((item) => (
