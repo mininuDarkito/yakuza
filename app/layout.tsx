@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { SessionProvider } from '@/components/providers/session-provider'
+import { ThemeProvider } from '@/components/theme-provider' // Importação do novo Provider
 import { Toaster } from '@/components/ui/sonner'
 import './globals.css'
 
@@ -37,11 +38,19 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="pt-BR">
+    <html lang="pt-BR" suppressHydrationWarning> {/* Adicione suppressHydrationWarning aqui */}
       <body className="font-sans antialiased">
         <SessionProvider>
-          {children}
-          <Toaster />
+          {/* Envolvendo a aplicação com o ThemeProvider */}
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="dark" // O sistema iniciará no escuro por padrão
+            enableSystem
+            disableTransitionOnChange
+          >
+            {children}
+            <Toaster />
+          </ThemeProvider>
         </SessionProvider>
         <Analytics />
       </body>

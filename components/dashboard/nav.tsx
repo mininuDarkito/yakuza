@@ -21,11 +21,12 @@ import {
   Download,
   LogOut,
   Menu,
-  ShieldCheck, // Ícone para o Admin
+  ShieldCheck,
+  Settings,
 } from "lucide-react"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { useState, useEffect } from "react"
-import { hr } from "date-fns/locale"
+import { ModeToggle } from "./mode-toggle" // Ajuste o caminho conforme necessário
 
 interface NavProps {
   user: {
@@ -33,7 +34,7 @@ interface NavProps {
     discordId: string
     discordUsername: string
     discordAvatar: string | null
-    role: string // Adicionado para o filtro de admin
+    role: string
     name?: string | null
     email?: string | null
     image?: string | null
@@ -45,22 +46,19 @@ export function DashboardNav({ user }: NavProps) {
   const [open, setOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
 
-  // CORREÇÃO DE HYDRATION: Só renderiza partes dinâmicas após montar no cliente
   useEffect(() => {
     setMounted(true)
   }, [])
 
-  // Itens básicos de navegação
   const navItems = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { href: "/dashboard/grupos", label: "Grupos", icon: FolderOpen },
     { href: "/dashboard/produtos", label: "Produtos", icon: Package },
     { href: "/dashboard/vendas", label: "Vendas", icon: ShoppingCart },
     { href: "/dashboard/exportar", label: "Exportar", icon: Download },
-  {href: "/dashboard/configuracoes", label: "Configurações", icon: Package },
+    { href: "/dashboard/configuracoes", label: "Configurações", icon: Settings },
   ]
 
-  // Se o usuário for admin, adicionamos o item extra no menu
   if (user.role === 'admin') {
     navItems.push({ href: "/dashboard/admin", label: "Admin", icon: ShieldCheck })
   }
@@ -69,7 +67,6 @@ export function DashboardNav({ user }: NavProps) {
     ? `https://cdn.discordapp.com/avatars/${user.discordId}/${user.discordAvatar}.png`
     : undefined
 
-  // Enquanto não montou, retornamos o esqueleto básico para evitar erro de ID
   if (!mounted) {
     return <header className="h-14 border-b bg-background/95 backdrop-blur" />
   }
@@ -81,7 +78,7 @@ export function DashboardNav({ user }: NavProps) {
         <div className="mr-4 hidden md:flex">
           <Link href="/dashboard" className="mr-6 flex items-center gap-2">
             <ShoppingCart className="h-6 w-6 text-primary" />
-            <span className="font-bold uppercase tracking-tighter">Vendas</span>
+            <span className="font-black uppercase italic tracking-tighter">Nexus</span>
           </Link>
           <nav className="flex items-center gap-1">
             {navItems.map((item) => (
@@ -89,9 +86,9 @@ export function DashboardNav({ user }: NavProps) {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-all hover:bg-accent",
+                  "flex items-center gap-2 rounded-md px-3 py-2 text-sm font-black uppercase italic transition-all hover:bg-accent",
                   pathname === item.href
-                    ? "bg-accent text-primary font-bold"
+                    ? "bg-accent text-primary"
                     : "text-muted-foreground"
                 )}
               >
@@ -109,11 +106,11 @@ export function DashboardNav({ user }: NavProps) {
               <Menu className="h-5 w-5" />
             </Button>
           </SheetTrigger>
-          <SheetContent side="left" className="w-64">
+          <SheetContent side="left" className="w-64 bg-background">
             <div className="flex flex-col gap-6 py-4">
               <Link href="/dashboard" className="flex items-center gap-2" onClick={() => setOpen(false)}>
                 <ShoppingCart className="h-6 w-6 text-primary" />
-                <span className="font-bold">Vendas</span>
+                <span className="font-black uppercase italic tracking-tighter">Nexus</span>
               </Link>
               <nav className="flex flex-col gap-2">
                 {navItems.map((item) => (
@@ -122,7 +119,7 @@ export function DashboardNav({ user }: NavProps) {
                     href={item.href}
                     onClick={() => setOpen(false)}
                     className={cn(
-                      "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all",
+                      "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-black uppercase italic transition-all",
                       pathname === item.href ? "bg-primary/10 text-primary" : "text-muted-foreground"
                     )}
                   >
@@ -135,53 +132,56 @@ export function DashboardNav({ user }: NavProps) {
           </SheetContent>
         </Sheet>
 
-        {/* LOGO MOBILE */}
-        <div className="flex flex-1 items-center justify-between md:justify-end gap-4">
+        <div className="flex flex-1 items-center justify-between md:justify-end gap-2 md:gap-4">
           <Link href="/dashboard" className="flex items-center gap-2 md:hidden">
             <ShoppingCart className="h-6 w-6 text-primary" />
-            <span className="font-bold uppercase tracking-tighter">Vendas</span>
+            <span className="font-black uppercase italic tracking-tighter">Nexus</span>
           </Link>
 
-          {/* USER MENU */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="relative h-9 w-9 rounded-full ring-offset-background transition-all hover:ring-2 hover:ring-primary">
-                <Avatar className="h-9 w-9">
-                  <AvatarImage src={avatarUrl} alt={user.discordUsername} />
-                  <AvatarFallback className="bg-primary/10 text-primary font-bold">
-                    {user.discordUsername.slice(0, 2).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-60 p-2">
-              <div className="flex items-center gap-2 p-2">
-                <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-bold leading-none">{user.discordUsername}</p>
-                  <p className="text-xs text-muted-foreground truncate italic">{user.role.toUpperCase()}</p>
-                </div>
-              </div>
-              <DropdownMenuSeparator />
-              
-              {/* Opção rápida de Admin no Dropdown se for admin */}
-              {user.role === 'admin' && (
-                <DropdownMenuItem asChild className="cursor-pointer font-bold text-primary focus:bg-primary/5">
-                  <Link href="/dashboard/admin">
-                    <ShieldCheck className="mr-2 h-4 w-4" />
-                    Painel de Admin
-                  </Link>
-                </DropdownMenuItem>
-              )}
+          <div className="flex items-center gap-2">
+            {/* BOTÃO DE TEMA */}
+            <ModeToggle />
 
-              <DropdownMenuItem
-                className="cursor-pointer text-destructive focus:text-destructive focus:bg-destructive/5 font-medium"
-                onClick={() => signOut({ callbackUrl: "/login" })}
-              >
-                <LogOut className="mr-2 h-4 w-4" />
-                Encerrar Sessão
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+            {/* USER MENU */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="relative h-9 w-9 rounded-full ring-offset-background transition-all hover:ring-2 hover:ring-primary">
+                  <Avatar className="h-9 w-9">
+                    <AvatarImage src={avatarUrl} alt={user.discordUsername} />
+                    <AvatarFallback className="bg-primary/10 text-primary font-bold">
+                      {user.discordUsername.slice(0, 2).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-60 p-2">
+                <div className="flex items-center gap-2 p-2">
+                  <div className="flex flex-col space-y-1">
+                    <p className="text-sm font-black uppercase italic leading-none">{user.discordUsername}</p>
+                    <p className="text-[10px] text-muted-foreground truncate italic font-bold uppercase">{user.role}</p>
+                  </div>
+                </div>
+                <DropdownMenuSeparator />
+                
+                {user.role === 'admin' && (
+                  <DropdownMenuItem asChild className="cursor-pointer font-black uppercase italic text-[10px] text-primary focus:bg-primary/5">
+                    <Link href="/dashboard/admin">
+                      <ShieldCheck className="mr-2 h-4 w-4" />
+                      Painel de Admin
+                    </Link>
+                  </DropdownMenuItem>
+                )}
+
+                <DropdownMenuItem
+                  className="cursor-pointer text-destructive focus:text-destructive focus:bg-destructive/5 font-black uppercase italic text-[10px]"
+                  onClick={() => signOut({ callbackUrl: "/login" })}
+                >
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Encerrar Sessão
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
       </div>
     </header>
