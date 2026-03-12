@@ -9,6 +9,7 @@ const grupoSchema = z.object({
   descricao: z.string().optional(),
 })
 
+// --- GET: BUSCAR GRUPO ESPECÍFICO ---
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -20,17 +21,25 @@ export async function GET(
 
   const { id } = await params
 
-  const [grupo] = await sql`
-    SELECT * FROM grupos WHERE id = ${id} AND user_id = ${session.user.id}
-  `
+  try {
+    const res = await sql.query(
+      "SELECT * FROM grupos WHERE id = $1 AND user_id = $2",
+      [id, session.user.id]
+    )
 
-  if (!grupo) {
-    return NextResponse.json({ error: "Grupo não encontrado" }, { status: 404 })
+    const grupo = res.rows[0]
+
+    if (!grupo) {
+      return NextResponse.json({ error: "Grupo não encontrado" }, { status: 404 })
+    }
+
+    return NextResponse.json(grupo)
+  } catch (error) {
+    return NextResponse.json({ error: "Erro ao buscar grupo" }, { status: 500 })
   }
-
-  return NextResponse.json(grupo)
 }
 
+// --- PUT: ATUALIZAR GRUPO ---
 export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -46,22 +55,24 @@ export async function PUT(
     const body = await request.json()
     const data = grupoSchema.parse(body)
 
-    const [grupo] = await sql`
+    const res = await sql.query(`
       UPDATE grupos
-      SET nome = ${data.nome}, descricao = ${data.descricao || null}, updated_at = NOW()
-      WHERE id = ${id} AND user_id = ${session.user.id}
+      SET nome = $1, descricao = $2, updated_at = NOW()
+      WHERE id = $3 AND user_id = $4
       RETURNING *
-    `
+    `, [data.nome, data.descricao || null, id, session.user.id])
+
+    const grupo = res.rows[0]
 
     if (!grupo) {
       return NextResponse.json({ error: "Grupo não encontrado" }, { status: 404 })
     }
 
     // Log activity
-    await sql`
+    await sql.query(`
       INSERT INTO activity_logs (user_id, action, entity_type, entity_id)
-      VALUES (${session.user.id}, 'update', 'grupo', ${id})
-    `
+      VALUES ($1, 'update', 'grupo', $2)
+    `, [session.user.id, id])
 
     return NextResponse.json(grupo)
   } catch (error) {
@@ -72,6 +83,7 @@ export async function PUT(
   }
 }
 
+// --- DELETE: EXCLUIR GRUPO ---
 export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -83,32 +95,39 @@ export async function DELETE(
 
   const { id } = await params
 
-  // Check if grupo has produtos
-  const [produtosCount] = await sql`
-    SELECT COUNT(*) as count FROM produtos WHERE grupo_id = ${id}
-  `
-
-  if (Number(produtosCount.count) > 0) {
-    return NextResponse.json(
-      { error: "Não é possível excluir um grupo com produtos" },
-      { status: 400 }
+  try {
+    // 1. Verifica se o grupo tem produtos vinculados (na tabela user_series)
+    const resCount = await sql.query(
+      "SELECT COUNT(*)::int as count FROM user_series WHERE grupo_id = $1",
+      [id]
     )
+
+    if (resCount.rows[0].count > 0) {
+      return NextResponse.json(
+        { error: "Não é possível excluir um grupo com produtos vinculados" },
+        { status: 400 }
+      )
+    }
+
+    // 2. Tenta deletar
+    const resDelete = await sql.query(
+      "DELETE FROM grupos WHERE id = $1 AND user_id = $2 RETURNING *",
+      [id, session.user.id]
+    )
+
+    if (resDelete.rowCount === 0) {
+      return NextResponse.json({ error: "Grupo não encontrado" }, { status: 404 })
+    }
+
+    // 3. Log activity
+    await sql.query(`
+      INSERT INTO activity_logs (user_id, action, entity_type, entity_id)
+      VALUES ($1, 'delete', 'grupo', $2)
+    `, [session.user.id, id])
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error("Erro no DELETE grupo:", error)
+    return NextResponse.json({ error: "Erro interno ao excluir grupo" }, { status: 500 })
   }
-
-  const [grupo] = await sql`
-    DELETE FROM grupos WHERE id = ${id} AND user_id = ${session.user.id}
-    RETURNING *
-  `
-
-  if (!grupo) {
-    return NextResponse.json({ error: "Grupo não encontrado" }, { status: 404 })
-  }
-
-  // Log activity
-  await sql`
-    INSERT INTO activity_logs (user_id, action, entity_type, entity_id)
-    VALUES (${session.user.id}, 'delete', 'grupo', ${id})
-  `
-
-  return NextResponse.json({ success: true })
 }
