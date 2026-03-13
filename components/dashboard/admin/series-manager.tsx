@@ -34,6 +34,8 @@ interface Produto {
   total_vendedores: number
   total_grupos: number
   detalhe_vendedores?: Vendedor[]
+  descricao?: string
+  link_series: string | null
 }
 
 export function SeriesManager() {
@@ -99,7 +101,7 @@ export function SeriesManager() {
       if (!res.ok) throw new Error()
 
       setSeries((prev) => prev.filter((s) => s.id !== id))
-      toast.success("Série eliminada do Nexus")
+      toast.success("Série eliminada da Yakuza")
       if (expandedId === id) setExpandedId(null)
     } catch (error) {
       toast.error("Erro ao excluir: A obra possui vínculos ativos")
@@ -116,12 +118,12 @@ export function SeriesManager() {
           <Search className="h-5 w-5 text-primary" />
           <Input
             placeholder="PESQUISAR NO CATÁLOGO..."
-            className="bg-transparent border-none focus-visible:ring-0 font-black italic uppercase text-xs tracking-widest text-white"
+            className="bg-transparent border-none focus-visible:ring-0 font-black regular uppercase text-xs tracking-widest text-white"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
         </form>
-        <Button variant="ghost" size="sm" onClick={fetchSeries} className="text-[10px] font-black uppercase italic hover:bg-white/5">
+        <Button variant="ghost" size="sm" onClick={fetchSeries} className="text-[10px] font-black uppercase regular hover:bg-white/5">
           <RefreshCcw className={`h-3 w-3 mr-2 ${loading ? 'animate-spin' : ''}`} /> Sincronizar
         </Button>
       </div>
@@ -129,7 +131,7 @@ export function SeriesManager() {
       {loading ? (
         <div className="flex flex-col items-center justify-center py-20 gap-4">
           <Loader2 className="h-10 w-10 text-primary animate-spin" />
-          <p className="font-black italic uppercase text-xs animate-pulse">Acessando Nexus...</p>
+          <p className="font-black regular uppercase text-xs animate-pulse">Acessando Yakuza...</p>
         </div>
       ) : (
         <>
@@ -139,21 +141,21 @@ export function SeriesManager() {
                 <div className="relative aspect-video bg-zinc-900 border-b border-white/5">
                   <img src={item.imagem_url || "/placeholder-serie.jpg"} alt={item.nome} className="object-cover w-full h-full opacity-60 group-hover:opacity-100 transition-opacity" />
                   <div className="absolute top-2 left-2 flex gap-1">
-                    <Badge className="bg-black/80 text-[8px] font-black italic border-primary/20 uppercase">{item.plataforma}</Badge>
+                    <Badge className="bg-black/80 text-[8px] font-black regular border-primary/20 uppercase">{item.plataforma}</Badge>
                   </div>
                 </div>
 
                 <CardContent className="p-4 space-y-3">
                   <div className="min-h-[40px]">
-                    <h3 className="font-black italic uppercase text-xs truncate text-white">{item.nome}</h3>
+                    <h3 className="font-black regular uppercase text-xs truncate text-white">{item.nome}</h3>
                     <p className="text-[9px] text-zinc-500 font-bold uppercase truncate">{item.nome_alternativo || "---"}</p>
                   </div>
 
                   <div className="grid grid-cols-2 gap-2 border-y border-white/5 py-2">
-                    <div className="flex items-center gap-1.5 text-[9px] font-black italic text-zinc-400">
+                    <div className="flex items-center gap-1.5 text-[9px] font-black regular text-zinc-400">
                       <ShoppingCart className="h-3 w-3 text-emerald-500" /> {item.total_vendas_count} VENDAS
                     </div>
-                    <div className="flex items-center gap-1.5 text-[9px] font-black italic text-zinc-400">
+                    <div className="flex items-center gap-1.5 text-[9px] font-black regular text-zinc-400">
                       <Users className="h-3 w-3 text-primary" /> {item.total_vendedores} SELLERS
                     </div>
                   </div>
@@ -161,7 +163,7 @@ export function SeriesManager() {
                   <div className="flex gap-1.5">
                     <Button 
                       variant="secondary" 
-                      className="flex-1 h-7 text-[9px] font-black uppercase italic"
+                      className="flex-1 h-7 text-[9px] font-black uppercase regular"
                       onClick={() => setExpandedId(expandedId === item.id ? null : item.id)}
                     >
                       {expandedId === item.id ? "FECHAR" : "MAIS INFO"}
@@ -180,7 +182,7 @@ export function SeriesManager() {
                       </AlertDialogTrigger>
                       <AlertDialogContent className="bg-zinc-950 border-2 border-red-500/50">
                         <AlertDialogHeader>
-                          <AlertDialogTitle className="text-xl font-black uppercase italic text-red-500 flex items-center gap-2">
+                          <AlertDialogTitle className="text-xl font-black uppercase regular text-red-500 flex items-center gap-2">
                             <AlertCircle className="h-5 w-5" /> Exclusão Global
                           </AlertDialogTitle>
                           <AlertDialogDescription className="text-zinc-400 font-bold uppercase text-[10px] leading-relaxed">
@@ -190,10 +192,10 @@ export function SeriesManager() {
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
-                          <AlertDialogCancel className="bg-zinc-900 border-none font-black uppercase italic text-[10px]">Abortar</AlertDialogCancel>
+                          <AlertDialogCancel className="bg-zinc-900 border-none font-black uppercase regular text-[10px]">Abortar</AlertDialogCancel>
                           <AlertDialogAction 
                             onClick={() => handleDelete(item.id)}
-                            className="bg-red-600 hover:bg-red-700 font-black uppercase italic text-[10px]"
+                            className="bg-red-600 hover:bg-red-700 font-black uppercase regular text-[10px]"
                           >
                             Confirmar Exclusão
                           </AlertDialogAction>
@@ -206,29 +208,29 @@ export function SeriesManager() {
                     <div className="pt-4 mt-2 space-y-4 animate-in fade-in slide-in-from-top-2">
                       <div className="grid grid-cols-2 gap-3">
                         <div className="bg-white/5 p-2 rounded-lg border border-white/5">
-                          <p className="text-[8px] font-black text-zinc-500 uppercase italic">Total de Grupos</p>
-                          <p className="text-sm font-black italic text-primary">{item.total_grupos}</p>
+                          <p className="text-[8px] font-black text-zinc-500 uppercase regular">Total de Grupos</p>
+                          <p className="text-sm font-black regular text-primary">{item.total_grupos}</p>
                         </div>
                         <div className="bg-white/5 p-2 rounded-lg border border-white/5 text-right">
-                          <p className="text-[8px] font-black text-zinc-500 uppercase italic">ID Catálogo</p>
+                          <p className="text-[8px] font-black text-zinc-500 uppercase regular">ID Catálogo</p>
                           <p className="text-[9px] font-mono text-zinc-400">{item.id.slice(0,8)}</p>
                         </div>
                       </div>
 
                       <div className="space-y-2">
-                        <p className="text-[9px] font-black uppercase italic text-primary flex items-center gap-1">
+                        <p className="text-[9px] font-black uppercase regular text-primary flex items-center gap-1">
                           <Layers className="h-3 w-3" /> Rastreamento de Vendedores
                         </p>
                         <div className="space-y-1 max-h-40 overflow-y-auto pr-2 custom-scrollbar">
                           {item.detalhe_vendedores && item.detalhe_vendedores.length > 0 ? (
                             item.detalhe_vendedores.map((v, idx) => (
                               <div key={idx} className="flex items-center justify-between p-2 bg-white/5 rounded border border-white/5">
-                                <span className="text-[10px] font-black uppercase italic">{v.vendedor}</span>
+                                <span className="text-[10px] font-black uppercase regular">{v.vendedor}</span>
                                 <span className="text-[9px] font-bold text-zinc-500 uppercase">{v.grupo}</span>
                               </div>
                             ))
                           ) : (
-                            <p className="text-[9px] text-center text-zinc-600 py-2 uppercase font-black italic">Sem vendedores ativos</p>
+                            <p className="text-[9px] text-center text-zinc-600 py-2 uppercase font-black regular">Sem vendedores ativos</p>
                           )}
                         </div>
                       </div>
@@ -240,7 +242,7 @@ export function SeriesManager() {
           </div>
 
           <div className="flex justify-center items-center gap-2 pt-10">
-            <Button variant="ghost" size="sm" disabled={page === 1} onClick={() => setPage(p => p - 1)} className="font-black uppercase italic text-[10px]">
+            <Button variant="ghost" size="sm" disabled={page === 1} onClick={() => setPage(p => p - 1)} className="font-black uppercase regular text-[10px]">
               <ChevronLeft className="h-4 w-4 mr-1" /> Anterior
             </Button>
             <div className="flex gap-1">
@@ -255,7 +257,7 @@ export function SeriesManager() {
                 </Button>
               ))}
             </div>
-            <Button variant="ghost" size="sm" disabled={page === totalPages} onClick={() => setPage(p => p + 1)} className="font-black uppercase italic text-[10px]">
+            <Button variant="ghost" size="sm" disabled={page === totalPages} onClick={() => setPage(p => p + 1)} className="font-black uppercase regular text-[10px]">
               Próximo <ChevronRight className="h-4 w-4 ml-1" />
             </Button>
           </div>
@@ -266,47 +268,64 @@ export function SeriesManager() {
       <Dialog open={!!editingItem} onOpenChange={() => setEditingItem(null)}>
         <DialogContent className="bg-zinc-950 border-white/10 text-white sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-xl font-black uppercase italic text-primary tracking-tighter">Editar Metadados Globais</DialogTitle>
+            <DialogTitle className="text-xl font-black uppercase regular text-primary tracking-tighter">Editar Metadados Globais</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-1">
-              <label className="text-[10px] font-black uppercase text-zinc-500 italic">Nome Oficial</label>
+              <label className="text-[10px] font-black uppercase text-zinc-500 regular">Capa da série</label>
+           
+              
+              <img src={editingItem?.imagem_url || "/placeholder-serie.jpg" } alt={editingItem?.nome}  className="object-cover w-full h-40 mt-2 rounded" />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[10px] font-black uppercase text-zinc-500 regular">Nome Oficial</label>
               <Input 
                 value={editingItem?.nome || ""} 
-                className="bg-zinc-900 border-white/10 italic font-bold"
+                className="bg-zinc-900 border-white/10 regular font-bold"
                 onChange={(e) => setEditingItem(prev => prev ? {...prev, nome: e.target.value} : null)}
               />
             </div>
             <div className="space-y-1">
-              <label className="text-[10px] font-black uppercase text-zinc-500 italic">Nome Alternativo</label>
+              <label className="text-[10px] font-black uppercase text-zinc-500 regular">Nome Alternativo</label>
               <Input 
                 value={editingItem?.nome_alternativo || ""} 
-                className="bg-zinc-900 border-white/10 italic font-bold"
+                className="bg-zinc-900 border-white/10 regular font-bold"
                 onChange={(e) => setEditingItem(prev => prev ? {...prev, nome_alternativo: e.target.value} : null)}
               />
             </div>
+
+            <div className="space-y-1">
+              <label className="min-h-100 font-black uppercase text-zinc-500 regular">Sinopse</label>
+              <Input 
+                value={editingItem?.descricao || ""} 
+                className="bg-zinc-900 text-[100px] border-white/10 regular font-bold"
+                onChange={(e) => setEditingItem(prev => prev ? {...prev, descricao: e.target.value} : null)}
+              />
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase text-zinc-500 italic">Plataforma</label>
+                <label className="text-[10px] font-black uppercase text-zinc-500 regular">Plataforma</label>
                 <Input 
                   value={editingItem?.plataforma || ""} 
-                  className="bg-zinc-900 border-white/10 italic font-bold uppercase"
+                  className="bg-zinc-900 border-white/10 regular font-bold uppercase"
                   onChange={(e) => setEditingItem(prev => prev ? {...prev, plataforma: e.target.value} : null)}
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase text-zinc-500 italic">Capa (URL)</label>
+                <label className="text-[10px] font-black uppercase text-zinc-500 regular">Capa (URL)</label>
                 <Input 
                   value={editingItem?.imagem_url || ""} 
-                  className="bg-zinc-900 border-white/10 italic font-bold"
+                  className="bg-zinc-900 border-white/10 regular font-bold"
                   onChange={(e) => setEditingItem(prev => prev ? {...prev, imagem_url: e.target.value} : null)}
                 />
               </div>
             </div>
           </div>
           <DialogFooter className="gap-2">
-            <Button variant="ghost" className="font-black uppercase italic text-[10px]" onClick={() => setEditingItem(null)}>Cancelar</Button>
-            <Button className="bg-primary font-black uppercase italic text-[10px]" onClick={handleUpdate} disabled={isSaving}>
+            <Button variant="ghost" className="font-black uppercase regular text-[10px]" onClick={() => setEditingItem(null)}>Cancelar</Button>
+            <Button className="bg-primary font-black uppercase regular text-[10px]" onClick={handleUpdate} disabled={isSaving}>
               {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />} Salvar Alterações
             </Button>
           </DialogFooter>

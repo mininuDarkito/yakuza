@@ -36,6 +36,7 @@ interface ExportFormProps {
 export function ExportForm({ grupos }: ExportFormProps) {
   const [isExporting, setIsExporting] = useState(false)
   const [grupoId, setGrupoId] = useState<string>("")
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false) // Controle manual do popover
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
     from: subMonths(new Date(), 1),
     to: new Date(),
@@ -47,30 +48,36 @@ export function ExportForm({ grupos }: ExportFormProps) {
       const params = new URLSearchParams({ type })
       
       if (type === "vendas") {
-        if (grupoId) params.append("grupo_id", grupoId)
-        if (dateRange?.from) params.append("start_date", dateRange.from.toISOString().split("T")[0])
-        if (dateRange?.to) params.append("end_date", dateRange.to.toISOString().split("T")[0])
+        // Só envia o ID se não for a opção "todos"
+        if (grupoId && grupoId !== "all") params.append("grupo_id", grupoId)
+        if (dateRange?.from) params.append("start_date", format(dateRange.from, "yyyy-MM-dd"))
+        if (dateRange?.to) params.append("end_date", format(dateRange.to, "yyyy-MM-dd"))
       }
 
       const response = await fetch(`/api/export?${params.toString()}`)
       
-      if (!response.ok) {
-        throw new Error("Erro ao exportar dados")
-      }
+      if (!response.ok) throw new Error("Erro ao exportar dados")
 
       const blob = await response.blob()
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement("a")
       a.href = url
-      a.download = response.headers.get("Content-Disposition")?.split("filename=")[1]?.replace(/"/g, "") || `${type}.csv`
+      
+      // Sanitização do nome do arquivo vindo do header
+      const contentDisposition = response.headers.get("Content-Disposition")
+      const fileName = contentDisposition 
+        ? contentDisposition.split("filename=")[1]?.replace(/"/g, "") 
+        : `${type}_${format(new Date(), "ddMMyyyy")}.csv`
+
+      a.download = fileName
       document.body.appendChild(a)
       a.click()
       window.URL.revokeObjectURL(url)
       document.body.removeChild(a)
 
       toast.success("Dados exportados com sucesso")
-    } catch {
-      toast.error("Erro ao exportar dados")
+    } catch (error) {
+      toast.error("Erro ao gerar arquivo de exportação")
     } finally {
       setIsExporting(false)
     }
@@ -78,19 +85,20 @@ export function ExportForm({ grupos }: ExportFormProps) {
 
   return (
     <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-      <Card>
+      {/* CARD VENDAS */}
+      <Card className="flex flex-col">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <ShoppingCart className="h-5 w-5" />
             Exportar Vendas
           </CardTitle>
           <CardDescription>
-            Exporte todas as suas vendas ou filtre por grupo e período
+            Exporte vendas com filtros de grupo e período.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4 flex-1">
           <div className="space-y-2">
-            <Label>Grupo (opcional)</Label>
+            <Label>Grupo</Label>
             <Select value={grupoId} onValueChange={setGrupoId}>
               <SelectTrigger>
                 <SelectValue placeholder="Todos os grupos" />
@@ -108,7 +116,7 @@ export function ExportForm({ grupos }: ExportFormProps) {
 
           <div className="space-y-2">
             <Label>Período</Label>
-            <Popover>
+            <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
               <PopoverTrigger asChild>
                 <Button
                   variant="outline"
@@ -134,11 +142,15 @@ export function ExportForm({ grupos }: ExportFormProps) {
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="start">
                 <Calendar
-                  initialFocus
+                  
                   mode="range"
                   defaultMonth={dateRange?.from}
                   selected={dateRange}
-                  onSelect={setDateRange}
+                  onSelect={(range) => {
+                    setDateRange(range)
+                    // Fecha o popover se o usuário selecionou o fim do range
+                    if (range?.from && range?.to) setIsCalendarOpen(false)
+                  }}
                   numberOfMonths={2}
                   locale={ptBR}
                 />
@@ -149,31 +161,32 @@ export function ExportForm({ grupos }: ExportFormProps) {
           <Button
             onClick={() => handleExport("vendas")}
             disabled={isExporting}
-            className="w-full"
+            className="w-full mt-auto"
           >
-            <Download className="mr-2 h-4 w-4" />
+            {isExporting ? <Download className="mr-2 h-4 w-4 animate-bounce" /> : <Download className="mr-2 h-4 w-4" />}
             {isExporting ? "Exportando..." : "Exportar Vendas"}
           </Button>
         </CardContent>
       </Card>
 
-      <Card>
+      {/* CARD PRODUTOS */}
+      <Card className="flex flex-col">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Package className="h-5 w-5" />
             Exportar Produtos
           </CardTitle>
           <CardDescription>
-            Exporte a lista completa de todos os seus produtos cadastrados
+            Lista completa de produtos cadastrados.
           </CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-col justify-end h-[calc(100%-8rem)]">
-          <div className="flex items-center gap-2 rounded-lg border p-4 mb-4 bg-muted/50">
-            <FileSpreadsheet className="h-8 w-8 text-muted-foreground" />
+        <CardContent className="flex flex-col justify-between flex-1">
+          <div className="flex items-center gap-3 rounded-lg border p-4 bg-muted/50 mb-6">
+            <FileSpreadsheet className="h-8 w-8 text-muted-foreground shrink-0" />
             <div>
               <p className="text-sm font-medium">Dados inclusos</p>
-              <p className="text-xs text-muted-foreground">
-                Nome, descrição, preço, grupo, status e data de criação
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Nome, descrição, preço, grupo e status.
               </p>
             </div>
           </div>
@@ -188,23 +201,24 @@ export function ExportForm({ grupos }: ExportFormProps) {
         </CardContent>
       </Card>
 
-      <Card>
+      {/* CARD GRUPOS */}
+      <Card className="flex flex-col">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <FolderOpen className="h-5 w-5" />
             Exportar Grupos
           </CardTitle>
           <CardDescription>
-            Exporte a lista de grupos com resumo de produtos e vendas
+            Resumo de grupos, produtos e vendas.
           </CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-col justify-end h-[calc(100%-8rem)]">
-          <div className="flex items-center gap-2 rounded-lg border p-4 mb-4 bg-muted/50">
-            <FileSpreadsheet className="h-8 w-8 text-muted-foreground" />
+        <CardContent className="flex flex-col justify-between flex-1">
+          <div className="flex items-center gap-3 rounded-lg border p-4 bg-muted/50 mb-6">
+            <FileSpreadsheet className="h-8 w-8 text-muted-foreground shrink-0" />
             <div>
               <p className="text-sm font-medium">Dados inclusos</p>
-              <p className="text-xs text-muted-foreground">
-                Nome, descrição, total de produtos, total de vendas e data de criação
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Nome, total de produtos e total vendido.
               </p>
             </div>
           </div>

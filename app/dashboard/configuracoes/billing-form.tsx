@@ -14,7 +14,7 @@ import { CreditCard, Wallet, Save, Loader2 } from "lucide-react"
 
 const billingSchema = z.object({
   nome_beneficiario: z.string().min(3, "Nome muito curto"),
-  tipo_chave: z.enum(["pix", "email", "telefone", "cpf", "cnpj"]),
+  tipo_chave: z.enum(["pix", "email", "telefone", "cpf", "cnpj", "Binance"]),
   chave_pix: z.string().min(1, "Chave Pix é obrigatória"),
   instrucoes: z.string().optional(),
 })
@@ -85,6 +85,7 @@ export function BillingForm({ initialData }: { initialData: any }) {
                       <SelectItem value="email">E-mail</SelectItem>
                       <SelectItem value="cpf">CPF</SelectItem>
                       <SelectItem value="telefone">Telefone</SelectItem>
+                      <SelectItem value="binance">Binance</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />

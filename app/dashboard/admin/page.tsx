@@ -4,7 +4,7 @@ import { redirect } from "next/navigation"
 import { sql } from "@/lib/db"
 import { AdminGate } from "@/components/dashboard/admin/admin-gate"
 import { UsersTable } from "@/components/dashboard/admin/users-table"
-import { BulkSeriesForm } from "@/components/dashboard/admin/bulk-series-form"
+import { BulkScraperForm } from "@/components/dashboard/admin/BulkScraperForm"
 import { SeriesManager } from "@/components/dashboard/admin/series-manager"
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -31,11 +31,11 @@ export default async function AdminPage() {
     `),
     sql.query(`
       SELECT 
-        TO_CHAR(created_at, 'MM') as mes_index,
-        TO_CHAR(created_at, 'Mon') as mes_nome,
+        TO_CHAR(data_venda, 'MM') as mes_index,
+        TO_CHAR(data_venda, 'Mon') as mes_nome,
         SUM(preco_total) as total
       FROM vendas
-      WHERE created_at >= DATE_TRUNC('year', CURRENT_DATE)
+      WHERE data_venda >= DATE_TRUNC('year', CURRENT_DATE)
       GROUP BY mes_index, mes_nome
       ORDER BY mes_index ASC
     `),
@@ -66,7 +66,7 @@ export default async function AdminPage() {
               <ShieldCheck className="h-8 w-8" />
             </div>
             <div>
-              <h1 className="text-4xl font-black uppercase italic tracking-tighter leading-none">Nexus Control</h1>
+              <h1 className="text-4xl font-black uppercase regular tracking-tighter leading-none">Painel Yakuza</h1>
               <p className="text-muted-foreground font-bold text-[10px] uppercase tracking-[0.2em] flex items-center gap-2 mt-1">
                 <Activity className="h-3 w-3 text-emerald-500" /> Terminal de Alta Hierarquia
               </p>
@@ -77,16 +77,16 @@ export default async function AdminPage() {
         {/* NAVEGAÇÃO POR ABAS */}
         <Tabs defaultValue="overview" className="space-y-8">
           <TabsList className="bg-zinc-950 border border-white/10 p-1 h-auto grid grid-cols-2 md:grid-cols-4 lg:w-[600px]">
-            <TabsTrigger value="overview" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-black uppercase italic text-[10px] py-2">
+            <TabsTrigger value="overview" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-black uppercase regular text-[10px] py-2">
               <LayoutDashboard className="h-3.5 w-3.5 mr-2" /> Visão Geral
             </TabsTrigger>
-            <TabsTrigger value="catalog" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-black uppercase italic text-[10px] py-2">
+            <TabsTrigger value="catalog" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-black uppercase regular text-[10px] py-2">
               <Database className="h-3.5 w-3.5 mr-2" /> Catálogo
             </TabsTrigger>
-            <TabsTrigger value="users" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-black uppercase italic text-[10px] py-2">
+            <TabsTrigger value="users" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-black uppercase regular text-[10px] py-2">
               <Users className="h-3.5 w-3.5 mr-2" /> Vendedores
             </TabsTrigger>
-            <TabsTrigger value="infrastructure" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-black uppercase italic text-[10px] py-2">
+            <TabsTrigger value="infrastructure" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-black uppercase regular text-[10px] py-2">
               <Zap className="h-3.5 w-3.5 mr-2" /> Ingestão
             </TabsTrigger>
           </TabsList>
@@ -98,7 +98,7 @@ export default async function AdminPage() {
                 <Landmark className="absolute -right-4 -bottom-4 h-24 w-24 opacity-10" />
                 <CardHeader className="pb-2">
                   <CardTitle className="text-[10px] font-black uppercase opacity-60 tracking-widest text-primary">Volume Bruto (GMV)</CardTitle>
-                  <div className="text-4xl font-black tracking-tighter italic text-emerald-400">
+                  <div className="text-4xl font-black tracking-tighter regular text-emerald-400">
                     {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(stats.gmv_total)}
                   </div>
                 </CardHeader>
@@ -107,14 +107,14 @@ export default async function AdminPage() {
               <Card className="bg-zinc-900/10 border-2 border-white/5">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Total Sellers</CardTitle>
-                  <div className="text-3xl font-black italic tracking-tighter text-white">{stats.total_users}</div>
+                  <div className="text-3xl font-black regular tracking-tighter text-white">{stats.total_users}</div>
                 </CardHeader>
               </Card>
 
               <Card className="bg-zinc-900/10 border-2 border-white/5">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Séries Ativas</CardTitle>
-                  <div className="text-3xl font-black italic tracking-tighter text-white">{stats.total_produtos}</div>
+                  <div className="text-3xl font-black regular tracking-tighter text-white">{stats.total_produtos}</div>
                 </CardHeader>
               </Card>
             </div>
@@ -122,14 +122,14 @@ export default async function AdminPage() {
             <div className="space-y-4">
               <div className="flex items-center gap-2">
                 <Calendar className="h-5 w-5 text-primary" />
-                <h2 className="text-xl font-black uppercase italic tracking-tighter">Performance Mensal ({new Date().getFullYear()})</h2>
+                <h2 className="text-xl font-black uppercase regular tracking-tighter">Performance Mensal ({new Date().getFullYear()})</h2>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
                 {performanceMensal.map((m) => (
                   <Card key={m.mes_index} className="border-2 border-white/5 bg-zinc-900/20 backdrop-blur-sm">
                     <CardContent className="p-4 text-center">
                       <p className="text-[10px] font-black uppercase text-zinc-500 mb-1">{m.mes_nome}</p>
-                      <p className="text-lg font-black text-emerald-500 italic">
+                      <p className="text-lg font-black text-emerald-500 regular">
                         {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(m.total)}
                       </p>
                     </CardContent>
@@ -143,14 +143,14 @@ export default async function AdminPage() {
           <TabsContent value="catalog" className="space-y-4 animate-in fade-in slide-in-from-left-4 duration-300">
              <div className="flex items-center gap-2 mb-6">
               <Database className="h-5 w-5 text-primary" />
-              <h2 className="text-xl font-black uppercase italic tracking-tighter leading-none">Gerenciamento de Infraestrutura</h2>
+              <h2 className="text-xl font-black uppercase regular tracking-tighter leading-none">Gerenciamento de Infraestrutura</h2>
             </div>
             <SeriesManager />
           </TabsContent>
 
           {/* ABA 3: USERS (Ranking e Tabelas) */}
           <TabsContent value="users" className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
-            <h2 className="text-xl font-black uppercase italic tracking-tight flex items-center gap-2 mb-6">
+            <h2 className="text-xl font-black uppercase regular tracking-tight flex items-center gap-2 mb-6">
                <Users className="h-5 w-5 text-primary" /> Ranking de Vendedores
             </h2>
             <UsersTable users={allUsers} />
@@ -161,17 +161,17 @@ export default async function AdminPage() {
             <div className="max-w-2xl">
               <div className="flex items-center gap-2 mb-6">
                 <Zap className="h-5 w-5 text-yellow-500 fill-yellow-500" />
-                <h2 className="text-xl font-black uppercase italic tracking-tight leading-none">Bulk Uploader</h2>
+                <h2 className="text-xl font-black uppercase regular tracking-tight leading-none">Cadastro Automático de series</h2>
               </div>
               <Card className="border-primary/20 shadow-xl bg-zinc-950">
                 <CardHeader>
-                  <CardTitle className="text-sm font-bold uppercase italic tracking-widest text-primary">Povoamento Rápido</CardTitle>
+                  <CardTitle className="text-sm font-bold uppercase regular tracking-widest text-primary">Cadastro rápido</CardTitle>
                   <CardDescription className="text-[10px] font-bold uppercase text-zinc-500">
-                    Insira múltiplas obras de uma só vez no Nexus Control.
+                    Insira múltiplas obras de uma só vez no Painel Yakuza.
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <BulkSeriesForm />
+                  <BulkScraperForm />
                 </CardContent>
               </Card>
             </div>

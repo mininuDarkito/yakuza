@@ -215,6 +215,22 @@ export function ProdutoForm({ produto, grupos }: ProdutoFormProps) {
               </div>
             </div>
 
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-1">
+              <FormField
+                control={form.control}
+                name="imagem_url"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-xs font-black uppercase italic">Link da imagem</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Ex: Kakao Page" {...field} value={field.value || ""} className="font-bold border-2 uppercase italic" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
               <FormField
                 control={form.control}

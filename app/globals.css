@@ -1,10 +1,48 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
+/* 1. DEFINIÇÃO DO TEMA (Tailwind v4)
+  Aqui registramos as variáveis para que o Tailwind gere as classes utilitárias
+  como bg-background, text-foreground, border-border, etc.
+*/
+@theme {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+
+  --radius-xl: var(--radius);
+  --radius-lg: calc(var(--radius) - 2px);
+  --radius-md: calc(var(--radius) - 4px);
+  --radius-sm: calc(var(--radius) - 6px);
+}
+
+/* 2. VARIÁVEIS DE CORES (Baseadas no seu design Nexus)
+*/
 @layer base {
   :root {
-    /* TEMA CLARO - Limpo com contrastes suaves */
     --background: 0 0% 100%;
     --foreground: 240 10% 3.9%;
     
@@ -14,8 +52,8 @@
     --popover: 0 0% 100%;
     --popover-foreground: 240 10% 3.9%;
     
-    --primary: 142 76% 36%; /* Verde Nexus sólido */
-    --primary-foreground: 355.7 100% 97.3%;
+    --primary: 235 82% 58%; 
+    --primary-foreground: 254.7 96% 67.3%;
     
     --secondary: 240 4.8% 95.9%;
     --secondary-foreground: 240 5.9% 10%;
@@ -36,58 +74,66 @@
   }
 
   .dark {
-    /* TEMA ESCURO - Alta variação e profundidade */
-    --background: 240 10% 4%;        /* Fundo bem escuro */
-    --foreground: 0 0% 98%;          /* Texto principal */
+    --background: 240 10% 4%;
+    --foreground: 0 0% 98%;
     
-    --card: 240 10% 7%;              /* Card visivelmente mais claro que o fundo */
+    --card: 240 10% 7%;
     --card-foreground: 0 0% 98%;
     
     --popover: 240 10% 5%;
     --popover-foreground: 0 0% 98%;
     
-    --primary: 142 70% 50%;          /* Verde Nexus Neon */
+    --primary: 254.7 96% 67.3%;
     --primary-foreground: 144 100% 5%;
     
-    --secondary: 240 4% 12%;         /* Botões secundários */
+    --secondary: 240 4% 12%;
     --secondary-foreground: 0 0% 98%;
     
-    --muted: 240 5% 15%;             /* Áreas desativadas ou fundos de input */
+    --muted: 240 5% 15%;
     --muted-foreground: 240 5% 65%;
     
-    --accent: 240 5% 20%;            /* Hover de botões e itens de lista */
+    --accent: 240 5% 20%;
     --accent-foreground: 0 0% 98%;
     
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
     
-    --border: 240 5% 15%;            /* Bordas nítidas para separar elementos */
+    --border: 240 5% 15%;
     --input: 240 5% 15%;
     --ring: 142 70% 50%;
   }
 }
 
+/* 3. ESTILOS GLOBAIS E RESELETORS
+*/
 @layer base {
   * {
+    /* Usando border-border com segurança agora que o tema foi registrado */
     @apply border-border;
   }
+  
   body {
-    @apply bg-background text-foreground font-sans;
+    @apply bg-background text-foreground;
   }
 
-  /* Custom Scrollbar para combinar com o Nexus */
+  /* Custom Scrollbar */
   .custom-scrollbar::-webkit-scrollbar {
     width: 6px;
   }
   .custom-scrollbar::-webkit-scrollbar-track {
-    @apply bg-transparent;
+    background: transparent;
   }
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    @apply bg-white/10 rounded-full hover:bg-primary/50 transition-colors;
+    background: hsla(0, 0%, 100%, 0.1);
+    border-radius: 9999px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--primary) / 0.5);
   }
 }
 
-/* Efeito de brilho para os cards (opcional) */
-.nexus-glow {
+/* 4. UTILITÁRIOS CUSTOMIZADOS
+*/
+@utility nexus-glow {
   box-shadow: 0 0 20px -10px hsl(var(--primary) / 0.3);
 }

@@ -7,7 +7,7 @@ export const authOptions: NextAuthOptions = {
     DiscordProvider({
       clientId: process.env.DISCORD_CLIENT_ID!,
       clientSecret: process.env.DISCORD_CLIENT_SECRET!,
-      // Adicionamos 'identify' e 'guilds' caso você queira checar o servidor no futuro
+      // 'identify' permite pegar o profile completo (incluindo o banner)
       authorization: { params: { scope: 'identify email' } },
     }),
   ],
@@ -19,23 +19,37 @@ export const authOptions: NextAuthOptions = {
           id: string
           username: string
           avatar: string | null
+          banner: string | null // <-- Capturado do profile
           email?: string
         }
 
+        // Lógica de URL do Banner do Discord
+        const bannerUrl = discordProfile.banner 
+          ? `https://cdn.discordapp.com/banners/${discordProfile.id}/${discordProfile.banner}.png?size=1024`
+          : null;
+
         try {
-          // Upsert: Garante que o usuário existe e atualiza os dados do Discord
+          // Nota: Se você ainda não tem a coluna 'discord_banner' no banco, 
+          // rode: ALTER TABLE users ADD COLUMN discord_banner TEXT;
           await sql.query(
             `
-            INSERT INTO users (discord_id, discord_username, discord_avatar, email)
-            VALUES ($1, $2, $3, $4)
+            INSERT INTO users (discord_id, discord_username, discord_avatar, discord_banner, email)
+            VALUES ($1, $2, $3, $4, $5)
             ON CONFLICT (discord_id) 
             DO UPDATE SET 
               discord_username = EXCLUDED.discord_username,
               discord_avatar = EXCLUDED.discord_avatar,
+              discord_banner = EXCLUDED.discord_banner,
               email = EXCLUDED.email,
               updated_at = NOW()
             `,
-            [discordProfile.id, discordProfile.username, discordProfile.avatar, discordProfile.email || null]
+            [
+              discordProfile.id, 
+              discordProfile.username, 
+              discordProfile.avatar, 
+              bannerUrl, // <-- Salvando a URL completa
+              discordProfile.email || null
+            ]
           )
 
           const userRes = await sql.query(`SELECT id FROM users WHERE discord_id = $1`, [discordProfile.id])
@@ -47,22 +61,21 @@ export const authOptions: NextAuthOptions = {
             )
           }
         } catch (error) {
-          console.error("❌ Erro ao salvar usuário:", error)
+          console.error("❌ Erro ao salvar usuário com banner:", error)
           return false
         }
       }
       return true
     },
 
-    async jwt({ token, user, account, profile }) {
-      // Na primeira vez que o JWT é criado (login)
+    async jwt({ token, account, profile }) {
       if (account && profile) {
         token.sub = (profile as { id: string }).id
         
-        // Buscamos o ROLE no banco para colocar no Token
-        const res = await sql.query("SELECT role FROM users WHERE discord_id = $1", [token.sub])
+        const res = await sql.query("SELECT role, discord_banner FROM users WHERE discord_id = $1", [token.sub])
         if (res.rows.length > 0) {
-          token.role = res.rows[0].role // Adiciona 'admin' ou 'user' ao token
+          token.role = res.rows[0].role
+          token.banner = res.rows[0].discord_banner // Coloca no token para ser rápido
         }
       }
       return token
@@ -73,21 +86,21 @@ export const authOptions: NextAuthOptions = {
 
       try {
         const res = await sql.query(
-          `SELECT id, discord_id, discord_username, discord_avatar, role 
+          `SELECT id, discord_id, discord_username, discord_avatar, discord_banner, role 
            FROM users WHERE discord_id = $1`,
           [token.sub]
         )
 
         if (res.rows.length > 0) {
           const dbUser = res.rows[0]
-
           session.user = {
             ...session.user,
             id: dbUser.id,
             discordId: dbUser.discord_id,
             discordUsername: dbUser.discord_username,
             discordAvatar: dbUser.discord_avatar,
-            role: dbUser.role, // <-- ESSENCIAL: Agora a sessão sabe se é admin
+            discordBanner: dbUser.discord_banner, // <-- Enviando para o Frontend
+            role: dbUser.role,
           }
         }
       } catch (error) {
@@ -98,16 +111,11 @@ export const authOptions: NextAuthOptions = {
     },
   },
 
-  pages: {
-    signIn: "/login",
-  },
-
-  session: {
-    strategy: "jwt",
-  },
+  pages: { signIn: "/login" },
+  session: { strategy: "jwt" },
 }
 
-// ATUALIZAÇÃO DA TIPAGEM (TypeScript)
+// ATUALIZAÇÃO DA TIPAGEM
 declare module "next-auth" {
   interface Session {
     user: {
@@ -115,7 +123,8 @@ declare module "next-auth" {
       discordId: string
       discordUsername: string
       discordAvatar: string | null
-      role: string // <-- Adicionado aqui
+      discordBanner: string | null // <-- Adicionado aqui
+      role: string
       name?: string | null
       email?: string | null
       image?: string | null
