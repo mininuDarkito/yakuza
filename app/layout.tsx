@@ -10,7 +10,7 @@ const _geist = Geist({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: 'Sistema de Vendas',
+  title: 'Yakuza Raw',
   description: 'Gerencie suas vendas, grupos e produtos',
   generator: 'v0.app',
   icons: {

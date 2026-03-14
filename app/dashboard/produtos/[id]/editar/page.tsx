@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth"
 import { sql } from "@/lib/db"
 import { ProdutoForm } from "@/components/dashboard/produtos/produto-form"
 
+
 export default async function EditarProdutoPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions)
   const userId = session?.user?.id
@@ -25,6 +26,8 @@ export default async function EditarProdutoPage({ params }: { params: Promise<{ 
   if (resProduto.rows.length === 0) notFound()
 
   return (
+
+    
     <div className="flex flex-col gap-6 p-6">
       <h1 className="text-3xl font-bold">Configurar Série</h1>
       <p className="text-muted-foreground">Ajuste seus dados para: {resProduto.rows[0].nome}</p>
