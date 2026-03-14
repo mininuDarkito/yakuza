@@ -135,7 +135,7 @@ export function SeriesManager() {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-4">
             {series.map((item) => (
               <Card key={item.id} className={`bg-zinc-900/40 border-2 border-white/5 transition-all duration-300 overflow-hidden group ${expandedId === item.id ? 'lg:col-span-2 ring-2 ring-primary/40' : 'hover:border-primary/40'}`}>
                 <div className="relative aspect-video bg-zinc-900 border-b border-white/5">

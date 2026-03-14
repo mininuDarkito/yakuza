@@ -44,7 +44,7 @@ export async function POST(request: Request) {
             imagem_url = COALESCE(EXCLUDED.imagem_url, produtos.imagem_url),
             link_serie = EXCLUDED.link_serie,
             plataforma = EXCLUDED.plataforma,
-            updated_at = NOW(),
+            updated_at = NOW()
         `, [
           metadata.nome, 
           metadata.descricao, 
