@@ -131,6 +131,7 @@ export function ProdutoForm({ produto, grupos }: ProdutoFormProps) {
   }
 
   return (
+    <>
     <Card className="max-w-2xl border-2 shadow-xl overflow-hidden">
       <CardHeader className="bg-muted/30 border-b">
         <CardTitle className="text-2xl font-black uppercase italic tracking-tighter">
@@ -343,5 +344,6 @@ export function ProdutoForm({ produto, grupos }: ProdutoFormProps) {
         </form>
       </Form>
     </Card>
+    </>
   )
 }

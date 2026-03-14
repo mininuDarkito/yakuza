@@ -4,7 +4,7 @@ export function TabelaGlobal() {
     return (
         <>
 
-            <div className="relative overflow-x-auto bg-neutral-primary-soft shadow-xs rounded-base border border-default">
+            <div className="relative shadow-xs rounded-base border-default">
                 <div className="grid gap-8">
 
                     <section className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
