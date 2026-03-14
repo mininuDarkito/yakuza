@@ -73,27 +73,39 @@ export default async function NovaVendaPage(props: {
     redirect("/dashboard/produtos")
   }
 
-  return (
-    <div className="flex flex-col gap-8 p-6 max-w-5xl mx-auto">
-      <div className="flex flex-col gap-1">
+return (
+    <div className="container mx-auto p-4 md:p-8">
+      {/* HEADER */}
+      <div className="flex flex-col gap-1 mb-8">
         <h1 className="text-4xl font-black uppercase tracking-tighter">
           Finalizar Registro
         </h1>
-        <p className="text-muted-foreground font-bold text-xs uppercase tracking-widest opacity-60">
+        <p className="text-muted-foreground font-bold text-[10px] uppercase tracking-widest opacity-60">
           Confirme os detalhes da venda abaixo
         </p>
       </div>
 
-      <div className="w-full grid-cols-1 sm:grid-cols-2, md:grid-cols-3 lg:grid-cols-4">
+      {/* GRID RESPONSIVO: 1 coluna no mobile, 2 colunas em telas XL (notebooks) */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 items-start">
+        
+        {/* Coluna 1: Formulário de Venda */}
+        <div className="w-full max-w-2xl mx-auto xl:mx-0 order-1">
+          <VendaForm 
+            grupos={grupos} 
+            produtos={produtos} 
+            initialProdutoId={produto_id} 
+          />
+        </div>
 
-      <VendaForm 
-        grupos={grupos} 
-        produtos={produtos} 
-        initialProdutoId={produto_id} 
-      />
-      <TabelaGlobal/>
+        {/* Coluna 2: Tabela de Referência */}
+        <div className="w-full space-y-6 order-2">
+          {/* Dica: Você pode envolver a TabelaGlobal em um Card para combinar com o Form */}
+          <div className="bg-card rounded-xl border-2 shadow-sm overflow-hidden text-card-foreground">
+             <TabelaGlobal />
+          </div>
+        </div>
+
       </div>
-
     </div>
   )
 }

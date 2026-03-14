@@ -8,48 +8,49 @@ import { TabelaGlobal } from "@/components/dashboard/produtos/tabela-global"
 
 export default async function NovoProdutoPage() {
   const session = await getServerSession(authOptions)
-  const userId = session?.user?.id
-
-  // Verificação de segurança
-  if (!userId) {
+  
+  if (!session?.user?.id) {
     redirect("/login")
   }
 
-  // No driver 'pg' local, usamos o método .query e passamos o userId no array [$1]
-  const res = await sql.query(
-    'SELECT id, nome FROM grupos WHERE user_id = $1 ORDER BY nome',
-    [userId]
-  )
+  const userId = session.user.id
 
-  // No 'pg', os dados estão em res.rows
-  const grupos = res.rows
+  try {
+    const res = await sql.query(
+      'SELECT id, nome FROM grupos WHERE user_id = $1 ORDER BY nome',
+      [userId]
+    )
+    const grupos = res.rows
 
-  // Se o usuário não tiver nenhum grupo criado, redirecionamos
-  if (grupos.length === 0) {
-    redirect("/dashboard/grupos/novo")
-  }
+    if (grupos.length === 0) {
+      redirect("/dashboard/grupos/novo")
+    }
 
-  return (
-    <div className="flex flex-col gap-6">
-      <div>
-        
-        <h1 className="text-3xl font-bold tracking-tight">Novo Produto</h1>
-        <p className="text-muted-foreground">
-          Cadastre um novo produto
-        </p>
-        
+    return (
+  <div className="container mx-auto p-4 md:p-8">
+    <div className="mb-8">
+      <h1 className="text-3xl font-bold tracking-tight">Novo Produto</h1>
+      <p className="text-muted-foreground">Cadastre um novo produto no seu catálogo</p>
+    </div>
+
+    {/* GRID PRINCIPAL RESPONSIVO */}
+    <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 items-start">
+      
+      {/* Coluna 1: Formulário (Fica no topo no mobile) */}
+      <div className="w-full max-w-2xl mx-auto xl:mx-0">
+        <ProdutoForm grupos={grupos} />
       </div>
 
-      <div className="w-full grid-cols-1 sm:grid-cols-2, md:grid-cols-3 lg:grid-cols-4">
-      {/* Passamos o array de grupos para o formulário popular o Select/Dropdown */}
-      <ProdutoForm grupos={grupos} />
-      <TabelaGlobal/>
+      {/* Coluna 2: Tabelas de Referência */}
+      <div className="w-full space-y-6">
+        <TabelaGlobal />
       </div>
-      
-
-      
-
 
     </div>
-  )
+  </div>
+)
+  } catch (error) {
+    console.error("Erro ao buscar grupos:", error)
+    return <div>Erro ao carregar dados.</div>
+  }
 }
