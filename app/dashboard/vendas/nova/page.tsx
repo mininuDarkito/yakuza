@@ -3,6 +3,7 @@ import { authOptions } from "@/lib/auth"
 import { sql } from "@/lib/db"
 import { VendaForm } from "@/components/dashboard/vendas/venda-form"
 import { redirect } from "next/navigation"
+import { TabelaGlobal } from "@/components/dashboard/produtos/tabela-global"
 
 export default async function NovaVendaPage(props: {
   searchParams: Promise<{ produto_id?: string }>
@@ -75,7 +76,7 @@ export default async function NovaVendaPage(props: {
   return (
     <div className="flex flex-col gap-8 p-6 max-w-5xl mx-auto">
       <div className="flex flex-col gap-1">
-        <h1 className="text-4xl font-black uppercase italic tracking-tighter">
+        <h1 className="text-4xl font-black uppercase tracking-tighter">
           Finalizar Registro
         </h1>
         <p className="text-muted-foreground font-bold text-xs uppercase tracking-widest opacity-60">
@@ -83,11 +84,16 @@ export default async function NovaVendaPage(props: {
         </p>
       </div>
 
+      <div className="columns-2">
+
       <VendaForm 
         grupos={grupos} 
         produtos={produtos} 
         initialProdutoId={produto_id} 
       />
+      <TabelaGlobal/>
+      </div>
+
     </div>
   )
 }

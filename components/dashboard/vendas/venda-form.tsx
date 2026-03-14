@@ -39,6 +39,7 @@ const formSchema = z.object({
   produto_id: z.string().min(1, "Selecione uma série"),
   capitulo_raw: z.string().min(1, "Informe o capítulo ou intervalo (ex: 10 ou 10-15)"),
   preco_unitario: z.string().min(1, "Preço é obrigatório"),
+  plataforma: z.string().optional(),
   observacoes: z.string().optional(),
   data_venda: z.date().optional(),
 })
@@ -52,6 +53,7 @@ interface Produto {
   preco: string | number; 
   grupo_id: string;
   imagem_url?: string | null;
+  plataforma: string 
 }
 
 interface VendaFormProps {
@@ -84,6 +86,7 @@ export function VendaForm({ grupos, produtos, initialProdutoId }: VendaFormProps
         form.setValue("produto_id", p.id)
         form.setValue("preco_unitario", String(p.preco).replace(".", ","))
         form.setValue("grupo_id", p.grupo_id)
+        form.setValue("plataforma", p.plataforma)
       }
     }
   }, [initialProdutoId, produtos, form])
@@ -91,6 +94,7 @@ export function VendaForm({ grupos, produtos, initialProdutoId }: VendaFormProps
   const selectedProdutoId = form.watch("produto_id")
   const capituloRaw = form.watch("capitulo_raw")
   const precoUnitario = form.watch("preco_unitario")
+  const plataformaa = form.watch("plataforma") 
 
   const selectedProduto = useMemo(() => 
     produtos.find((p) => p.id === selectedProdutoId), 
@@ -164,7 +168,7 @@ export function VendaForm({ grupos, produtos, initialProdutoId }: VendaFormProps
             
             {/* CABEÇALHO VISUAL: CAPA + SELEÇÃO */}
             <div className="flex flex-col sm:flex-row gap-8 items-center sm:items-start">
-              <div className="relative h-64 w-44 flex-shrink-0 overflow-hidden rounded-2xl border-4 border-white shadow-2xl bg-zinc-100 ring-1 ring-zinc-200">
+              <div className="relative h-64 w-44 shrink-0 overflow-hidden rounded-2xl border-4 border-white shadow-2xl bg-zinc-100 ring-1 ring-zinc-200">
                 {selectedProduto?.imagem_url ? (
                   <img 
                     src={selectedProduto.imagem_url} 
@@ -177,7 +181,7 @@ export function VendaForm({ grupos, produtos, initialProdutoId }: VendaFormProps
                   </div>
                 )}
                 {selectedProduto && (
-                   <div className="absolute top-2 right-2 bg-emerald-500 text-white px-2 py-1 rounded-md text-[10px] font-black uppercase italic shadow-lg">
+                   <div className="absolute top-2 right-2 bg-emerald-500 text-white px-2 py-1 rounded-md text-[10px] font-black uppercase  shadow-lg">
                       Ativo
                    </div>
                 )}
@@ -189,7 +193,7 @@ export function VendaForm({ grupos, produtos, initialProdutoId }: VendaFormProps
                   name="produto_id"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-xs font-black uppercase italic tracking-widest text-zinc-500">Série Selecionada</FormLabel>
+                      <FormLabel className="text-xs font-black uppercase  tracking-widest text-zinc-500">Série Selecionada</FormLabel>
                       <Select
                         onValueChange={(val) => {
                           field.onChange(val)
@@ -202,13 +206,13 @@ export function VendaForm({ grupos, produtos, initialProdutoId }: VendaFormProps
                         value={field.value}
                       >
                         <FormControl>
-                          <SelectTrigger className="h-14 text-xl font-black italic tracking-tighter border-2 focus:ring-primary">
+                          <SelectTrigger className="h-14 text-xl font-black  tracking-tighter border-2 focus:ring-primary">
                             <SelectValue placeholder="Escolha a série..." />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
                           {produtos.map((p) => (
-                            <SelectItem key={p.id} value={p.id} className="py-3 text-lg font-bold uppercase italic">
+                            <SelectItem key={p.id} value={p.id} className="py-3 text-lg font-bold uppercase ">
                               {p.nome}
                             </SelectItem>
                           ))}
@@ -224,28 +228,34 @@ export function VendaForm({ grupos, produtos, initialProdutoId }: VendaFormProps
                   name="grupo_id"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-xs font-black uppercase italic tracking-widest text-zinc-500">Grupo de Destino</FormLabel>
+                      <FormLabel className="text-xs font-black uppercase  tracking-widest text-zinc-500">Grupo de Destino</FormLabel>
                       <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
-                          <SelectTrigger className="border-2 font-bold uppercase italic h-11">
+                          <SelectTrigger className="border-2 font-bold uppercase  h-11">
                             <SelectValue placeholder="Selecione o grupo" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
                           {grupos.map((g) => (
-                            <SelectItem key={g.id} value={g.id} className="font-bold uppercase italic">{g.nome}</SelectItem>
+                            <SelectItem key={g.id} value={g.id} className="font-bold uppercase ">{g.nome}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                       <FormMessage />
+
+                    
                     </FormItem>
+
+                    
+
+
                   )}
                 />
               </div>
             </div>
 
             {/* FINANCEIRO E CAPÍTULOS */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 rounded-2xl bg-zinc-50 border-2 border-zinc-100 border-dashed">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 rounded-2xl border-2 border-zinc-100 border-dashed">
               <FormField
                 control={form.control}
                 name="capitulo_raw"
@@ -255,7 +265,7 @@ export function VendaForm({ grupos, produtos, initialProdutoId }: VendaFormProps
                     <FormControl>
                       <Input placeholder="Ex: 10 ou 10-15" {...field} className="h-12 font-mono text-xl font-black border-2 focus:border-primary" />
                     </FormControl>
-                    <div className="flex items-center gap-1 mt-1 text-[9px] font-bold text-zinc-400 uppercase italic">
+                    <div className="flex items-center gap-1 mt-1 text-[9px] font-bold text-zinc-400 uppercase ">
                        <Info className="h-3 w-3" /> Use "-" para registrar lote
                     </div>
                     <FormMessage />
@@ -288,15 +298,15 @@ export function VendaForm({ grupos, produtos, initialProdutoId }: VendaFormProps
               <div className="flex items-center justify-between p-6 bg-zinc-950 rounded-2xl text-white shadow-2xl transform transition-all animate-in zoom-in-95 duration-200">
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-50">Total a Receber</p>
-                  <p className="text-4xl font-black italic tracking-tighter text-emerald-400">
+                  <p className="text-4xl font-black  tracking-tighter text-emerald-400">
                     {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(totalGeral)}
                   </p>
                 </div>
                 <div className="flex flex-col items-end">
-                  <span className="bg-white/10 px-4 py-1 rounded-full text-[10px] font-black uppercase italic border border-white/10 mb-1">
+                  <span className="bg-white/10 px-4 py-1 rounded-full text-[10px] font-black uppercase  border border-white/10 mb-1">
                     {calculoCapitulos.totalItens} Item(ns)
                   </span>
-                  <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest italic">Nexus Billing v2</span>
+                  <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest ">Nexus Billing v2</span>
                 </div>
               </div>
             )}
@@ -307,13 +317,13 @@ export function VendaForm({ grupos, produtos, initialProdutoId }: VendaFormProps
                 name="data_venda"
                 render={({ field }) => (
                   <FormItem className="flex flex-col">
-                    <FormLabel className="text-xs font-black uppercase italic tracking-widest text-zinc-500">Data do Registro</FormLabel>
+                    <FormLabel className="text-xs font-black uppercase  tracking-widest text-zinc-500">Data do Registro</FormLabel>
                     <Popover>
                       <PopoverTrigger asChild>
                         <FormControl>
                           <Button 
                             variant="outline" 
-                            className={cn("w-full h-12 border-2 pl-3 text-left font-bold uppercase italic text-xs", !field.value && "text-muted-foreground")}
+                            className={cn("w-full h-12 border-2 pl-3 text-left font-bold uppercase  text-xs", !field.value && "text-muted-foreground")}
                           >
                             {field.value ? format(field.value, "PPP", { locale: ptBR }) : <span>Selecione a data</span>}
                             <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
@@ -334,7 +344,7 @@ export function VendaForm({ grupos, produtos, initialProdutoId }: VendaFormProps
                 name="observacoes"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-xs font-black uppercase italic tracking-widest text-zinc-500">Notas de Venda</FormLabel>
+                    <FormLabel className="text-xs font-black uppercase  tracking-widest text-zinc-500">Notas de Venda</FormLabel>
                     <FormControl>
                       <Textarea placeholder="Opcional..." {...field} className="min-h-[48px] h-[48px] resize-none border-2 font-bold text-xs" />
                     </FormControl>
@@ -345,14 +355,14 @@ export function VendaForm({ grupos, produtos, initialProdutoId }: VendaFormProps
             </div>
           </CardContent>
 
-          <CardFooter className="flex justify-between items-center border-t-2 border-zinc-100 p-8 mt-4 bg-zinc-50/50">
+          <CardFooter className="flex justify-between items-center border-t-2 p-8 mt-4">
             <Button variant="ghost" asChild className="text-zinc-400 font-bold uppercase text-[10px] tracking-widest hover:bg-transparent hover:text-zinc-600">
               <Link href="/dashboard/vendas">Cancelar</Link>
             </Button>
             <Button 
               type="submit" 
               disabled={isLoading || calculoCapitulos.totalItens === 0 || !selectedProdutoId} 
-              className="px-12 h-14 text-xl font-black uppercase italic tracking-tighter shadow-[0_10px_40px_-10px_rgba(0,0,0,0.3)] transition-all hover:translate-y-[-4px] active:scale-[0.98] active:translate-y-0"
+              className="px-12 h-14 text-xl font-black uppercase  tracking-tighter shadow-[0_10px_40px_-10px_rgba(0,0,0,0.3)] transition-all hover:translate-y-[-4px] active:scale-[0.98] active:translate-y-0"
             >
               {isLoading ? (
                 <>
