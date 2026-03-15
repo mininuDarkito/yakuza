@@ -1,44 +1,46 @@
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
-import { sql } from "@/lib/db"
-import { NextResponse } from "next/server"
+import { NextResponse } from "next/server";
+import { sql } from "@/lib/db";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
-export async function DELETE(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const session = await getServerSession(authOptions)
-  const { id } = await params
-
-  // BLOQUEIO DE SEGURANÇA: Só Admin passa daqui
-  if (session?.user?.role !== 'admin') {
-    return NextResponse.json({ error: "Acesso negado: Requer Admin" }, { status: 403 })
-  }
-
-  try {
-    // 1. Deletar do catálogo global (tabela produtos)
-    // Se você configurou 'onDelete: Cascade' no Prisma, isso vai limpar
-    // automaticamente todas as user_series de todos os usuários.
-    const res = await sql.query(`DELETE FROM produtos WHERE id = $1 RETURNING nome`, [id])
-
-    if (res.rowCount === 0) {
-      return NextResponse.json({ error: "Série não encontrada no catálogo" }, { status: 404 })
+export async function GET(request: Request) {
+    const session = await getServerSession(authOptions);
+    
+    if (session?.user?.role !== 'admin') {
+        return NextResponse.json({ error: "403" }, { status: 403 });
     }
 
-    const nomeProduto = res.rows[0].nome
+    const { searchParams } = new URL(request.url);
+    const userId = searchParams.get("user_id");
 
-    // 2. Log de Auditoria (Saber qual Admin apagou)
-    await sql.query(`
-      INSERT INTO activity_logs (user_id, action, entity_type, details)
-      VALUES ($1, 'full_catalog_delete', 'produtos', $2)
-    `, [session.user.id, JSON.stringify({ product_id: id, product_name: nomeProduto })])
+    if (!userId) {
+        return NextResponse.json({ error: "ID do usuário é obrigatório" }, { status: 400 });
+    }
 
-    return NextResponse.json({ 
-      success: true, 
-      message: `A obra "${nomeProduto}" foi removida de todo o sistema.` 
-    })
-  } catch (error) {
-    console.error("❌ Erro ao deletar do catálogo:", error)
-    return NextResponse.json({ error: "Erro ao remover produto do catálogo global" }, { status: 500 })
-  }
+    try {
+        const res = await sql.query(`
+            SELECT 
+                p.id as produto_id,
+                p.nome,
+                -- CORREÇÃO AQUI: O banco tem 'imagem_url', o frontend quer 'capa_url'
+                p.imagem_url as capa_url, 
+                COUNT(v.id)::int as total_caps_vendidos,
+                COUNT(v.id)::int as total_registros,
+                COALESCE(SUM(v.preco_total::numeric), 0)::float as faturamento_serie
+            FROM produtos p
+            INNER JOIN vendas v ON p.id = v.produto_id
+            WHERE v.user_id = $1
+            -- O GROUP BY deve usar o nome REAL da coluna do banco (imagem_url)
+            GROUP BY p.id, p.nome, p.imagem_url
+            ORDER BY p.nome ASC
+        `, [userId]);
+
+        return NextResponse.json(res.rows);
+    } catch (error: any) {
+        console.error("❌ Erro SQL no Catálogo:", error.message);
+        return NextResponse.json({ 
+            error: "Erro ao processar dados do catálogo",
+            details: error.message 
+        }, { status: 500 });
+    }
 }

@@ -78,7 +78,7 @@ export function DashboardNav({ user }: NavProps) {
         <div className="mr-4 hidden md:flex">
           <Link href="/dashboard" className="mr-6 flex items-center gap-2">
             <ShoppingCart className="h-6 w-6 text-primary" />
-            <span className="font-black uppercase italic tracking-tighter">Yakuza Raws</span>
+            <span className="font-black uppercase italic tracking-tighter">Yakuza Rawss</span>
           </Link>
           <nav className="flex items-center gap-1">
             {navItems.map((item) => (
@@ -110,7 +110,7 @@ export function DashboardNav({ user }: NavProps) {
             <div className="flex flex-col gap-6 py-4">
               <Link href="/dashboard" className="flex items-center gap-2" onClick={() => setOpen(false)}>
                 <ShoppingCart className="h-6 w-6 text-primary" />
-                <span className="font-black uppercase italic tracking-tighter">Nexus</span>
+                <span className="font-black uppercase italic tracking-tighter">Yakuza Raws</span>
               </Link>
               <nav className="flex flex-col gap-2">
                 {navItems.map((item) => (
@@ -135,7 +135,7 @@ export function DashboardNav({ user }: NavProps) {
         <div className="flex flex-1 items-center justify-between md:justify-end gap-2 md:gap-4">
           <Link href="/dashboard" className="flex items-center gap-2 md:hidden">
             <ShoppingCart className="h-6 w-6 text-primary" />
-            <span className="font-black uppercase italic tracking-tighter">Nexus</span>
+            <span className="font-black uppercase italic tracking-tighter">Yakuza Raws</span>
           </Link>
 
           <div className="flex items-center gap-2">
