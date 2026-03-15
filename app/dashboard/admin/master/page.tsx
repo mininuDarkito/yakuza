@@ -2,7 +2,7 @@ import { sql } from "@/lib/db"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { notFound } from "next/navigation"
-import { MasterControl } from "./master-control" // ajuste o caminho se necessário
+import { MasterControl } from "@/components/dashboard/admin/MasterControl"
 import { Settings2 } from "lucide-react"
 
 export default async function MasterPage() {
