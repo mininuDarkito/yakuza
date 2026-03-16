@@ -3,6 +3,13 @@ import { NextResponse } from "next/server"
 import { authOptions } from "@/lib/auth"
 import { sql } from "@/lib/db"
 
+// Função auxiliar para transformar ponto em vírgula
+function formatCurrency(value: any): string {
+  if (value === null || value === undefined) return "0,00";
+  // Converte para string com 2 casas decimais e troca o ponto por vírgula
+  return Number(value).toFixed(2).replace(".", ",");
+}
+
 export async function GET(request: Request) {
   const session = await getServerSession(authOptions)
   const userId = session?.user?.id
@@ -31,7 +38,6 @@ export async function GET(request: Request) {
         LEFT JOIN grupos g ON v.grupo_id = g.id
       `
 
-      // Correção nos ORDER BY: Removido o "= $1" ou "- $1" que causava erro de sintaxe
       if (grupoId && grupoId !== 'all' && startDate && endDate) {
         resVendas = await sql.query(`${queryBase} 
     WHERE v.user_id = $1 
@@ -63,8 +69,8 @@ export async function GET(request: Request) {
         v.produto,
         v.grupo || "Sem Grupo",
         v.quantidade,
-        formatCurrency(Number(v.preco_unitario)),
-        formatCurrency(Number(v.preco_total)),
+        formatCurrency(v.preco_unitario), // <--- Formatado aqui
+        formatCurrency(v.preco_total),    // <--- Formatado aqui
         v.plataforma || "",
         v.observacoes || ""
       ])
@@ -137,13 +143,6 @@ export async function GET(request: Request) {
   }
 
   return NextResponse.json({ error: "Tipo inválido" }, { status: 400 })
-}
-
-function formatCurrency(value: number): string {
-  return new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-  }).format(value)
 }
 
 function escapeCSV(value: unknown): string {

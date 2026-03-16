@@ -1,22 +1,25 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { toast } from "sonner"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import {
     Search, Save, X, Edit3, Loader2, Trash2,
-    ChevronLeft, ChevronRight, Filter
+    ChevronLeft, ChevronRight, Filter, Zap, Copy, CheckCircle2, Plus
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface EditVendasProps {
     usuarios: any[]
-    grupos: any[]
+    grupos: any[] // Fallback inicial
 }
 
-export function EditVendasAdmin({ usuarios, grupos = [] }: EditVendasProps) {
+export function EditVendasAdmin({ usuarios, grupos: gruposIniciais = [] }: EditVendasProps) {
     const [selectedUser, setSelectedUser] = useState("")
+    const [userGroups, setUserGroups] = useState<any[]>([]) // Grupos filtrados do usuário
+    const [isLoadingGroups, setIsLoadingGroups] = useState(false)
+
     const [view, setView] = useState<'catalog' | 'details'>('catalog')
     const [catalog, setCatalog] = useState<any[]>([])
     const [searchTerm, setSearchTerm] = useState("")
@@ -24,13 +27,36 @@ export function EditVendasAdmin({ usuarios, grupos = [] }: EditVendasProps) {
     const [selectedProduct, setSelectedProduct] = useState<any>(null)
     const [loading, setLoading] = useState(false)
     const [editingId, setEditingId] = useState<string | null>(null)
-    const [editForm, setEditForm] = useState<any>()
+    const [editForm, setEditForm] = useState<any>(null)
 
     // Estados de Paginação e Filtro
     const [currentMonth, setCurrentMonth] = useState(new Date().getMonth() + 1)
     const [currentYear, setCurrentYear] = useState(new Date().getFullYear())
     const [currentPage, setCurrentPage] = useState(1)
     const [hasMore, setHasMore] = useState(true)
+
+    // --- FILTRAGEM DINÂMICA DE GRUPOS POR USUÁRIO ---
+    useEffect(() => {
+        const fetchUserGroups = async () => {
+            if (!selectedUser) {
+                setUserGroups([]);
+                return;
+            }
+            setIsLoadingGroups(true);
+            try {
+                const res = await fetch(`/api/admin/grupos/list?userId=${selectedUser}`);
+                if (!res.ok) throw new Error();
+                const data = await res.json();
+                setUserGroups(data);
+            } catch (error) {
+                console.error("Erro ao carregar grupos do usuário");
+                setUserGroups([]);
+            } finally {
+                setIsLoadingGroups(false);
+            }
+        };
+        fetchUserGroups();
+    }, [selectedUser]);
 
     const filteredCatalog = catalog.filter(item =>
         item.nome.toLowerCase().includes(searchTerm.toLowerCase())
@@ -53,40 +79,33 @@ export function EditVendasAdmin({ usuarios, grupos = [] }: EditVendasProps) {
     }
 
     const fetchHistory = async (produtoId: string, page = 1) => {
-    setLoading(true);
-    // 1. Limpa o estado IMEDIATAMENTE para a tabela sumir antes de carregar
-    setHistory([]); 
-    
-    try {
-        // 2. Adicionamos um parâmetro aleatório (timestamp) para evitar cache do navegador
-        const res = await fetch(
-            `/api/admin/vendas/list?user_id=${selectedUser}&produto_id=${produtoId}&mes=${currentMonth}&ano=${currentYear}&page=${page}&cache_bust=${Date.now()}`
-        );
-        const data = await res.json();
-        
-        setHistory(Array.isArray(data) ? data : []);
-        setCurrentPage(page);
-        setHasMore(data?.length === 20); 
-        setView('details');
-    } catch (error) { 
-        toast.error("Erro ao carregar histórico"); 
-    } finally { 
-        setLoading(false); 
+        setLoading(true);
+        setHistory([]);
+        try {
+            const res = await fetch(
+                `/api/admin/vendas/list?user_id=${selectedUser}&produto_id=${produtoId}&mes=${currentMonth}&ano=${currentYear}&page=${page}&cache_bust=${Date.now()}`
+            );
+            const data = await res.json();
+            setHistory(Array.isArray(data) ? data : []);
+            setCurrentPage(page);
+            setHasMore(data?.length === 20);
+            setView('details');
+        } catch (error) {
+            toast.error("Erro ao carregar histórico");
+        } finally {
+            setLoading(false);
+        }
     }
-}
 
     const startEdit = (venda: any) => {
-    setEditingId(venda.id);
-
-    // Garante que pegamos a data pura YYYY-MM-DD sem interferência de fuso horário
-    const dataIso = new Date(venda.data_venda).toISOString().split('T')[0];
-
-    setEditForm({
-        ...venda,
-        data_venda: dataIso, // Agora garantido YYYY-MM-DD
-        quantidade: venda.quantidade
-    });
-};
+        setEditingId(venda.id);
+        const dataIso = new Date(venda.data_venda).toISOString().split('T')[0];
+        setEditForm({
+            ...venda,
+            data_venda: dataIso,
+            quantidade: venda.quantidade
+        });
+    };
 
     const handleSave = async () => {
         try {
@@ -94,13 +113,12 @@ export function EditVendasAdmin({ usuarios, grupos = [] }: EditVendasProps) {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-    id: editForm.id,
-    preco_unitario: editForm.preco_unitario,
-    quantidade: Number(editForm.quantidade),
-    // Adicionamos o horário T00:00:00Z para forçar o início do dia em UTC
-    data_venda: `${editForm.data_venda}T00:00:00.000Z`, 
-    grupo_id: editForm.grupo_id
-})
+                    id: editForm.id,
+                    preco_unitario: editForm.preco_unitario,
+                    quantidade: Number(editForm.quantidade),
+                    data_venda: `${editForm.data_venda}T00:00:00.000Z`,
+                    grupo_id: editForm.grupo_id
+                })
             })
             if (!res.ok) {
                 const errorData = await res.json()
@@ -266,12 +284,27 @@ export function EditVendasAdmin({ usuarios, grupos = [] }: EditVendasProps) {
                                         <tr key={v.id} className="hover:bg-white/5 transition-colors group">
                                             <td className="p-4">
                                                 {editingId === v.id ? (
-                                                    <select value={editForm.grupo_id || ""} onChange={e => setEditForm({ ...editForm, grupo_id: e.target.value })} className="bg-zinc-900 border border-white/10 text-[10px] uppercase font-black text-primary rounded px-2 py-1 outline-none">
-                                                        <option value="">Sem Grupo</option>
-                                                        {grupos.map(g => <option key={g.id} value={g.id}>{g.nome}</option>)}
+                                                    <select
+                                                        value={editForm.grupo_id || ""}
+                                                        disabled={isLoadingGroups} // Trava enquanto carrega
+                                                        onChange={e => setEditForm({ ...editForm, grupo_id: e.target.value })}
+                                                        className="bg-zinc-900 border border-white/10 text-[10px] uppercase font-black text-primary rounded px-2 py-1 outline-none focus:border-primary/50"
+                                                    >
+                                                        <option value="">
+                                                            {isLoadingGroups ? "Carregando..." : "Sem Grupo"}
+                                                        </option>
+
+                                                        {/* USANDO A LISTA FILTRADA userGroups EM VEZ DE grupos */}
+                                                        {userGroups.map(g => (
+                                                            <option key={g.id} value={g.id}>
+                                                                {g.nome}
+                                                            </option>
+                                                        ))}
                                                     </select>
                                                 ) : (
-                                                    <span className="text-[10px] font-black text-primary uppercase italic">{v.grupo_nome || "---"}</span>
+                                                    <span className="text-[10px] font-black text-primary uppercase italic">
+                                                        {v.grupo_nome || "---"}
+                                                    </span>
                                                 )}
                                             </td>
                                             <td className="p-4 font-mono text-emerald-500 font-bold italic text-sm">

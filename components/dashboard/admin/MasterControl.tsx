@@ -5,6 +5,7 @@ import { toast } from "sonner"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { Progress } from "@/components/ui/progress" // Se você tiver o componente de progresso do shadcn
 import {
     Select,
     SelectContent,
@@ -70,32 +71,26 @@ export function MasterControl({ usuarios, gruposInitial = [] }: { usuarios: Usua
     const [buffer, setBuffer] = useState<PreVenda[]>([])
     const [grupos, setGrupos] = useState<Grupo[]>(gruposInitial)
     const [isLoadingGrupos, setIsLoadingGrupos] = useState(false)
+    const [progress, setProgress] = useState(0)
+    const [statusText, setStatusText] = useState("")
 
-    // Busca grupos se não vierem via props
+   // 1. Efeito para buscar grupos baseados no usuário selecionado
     useEffect(() => {
         const fetchGruposDoUsuario = async () => {
-            // Se não tem usuário selecionado, limpamos a lista e paramos aqui
             if (!targetUser) {
                 setGrupos([]);
                 return;
             }
 
             setIsLoadingGrupos(true);
-
             try {
-                // Chamamos APENAS a rota filtrada
                 const res = await fetch(`/api/admin/grupos/list?userId=${targetUser}`);
-
                 if (!res.ok) throw new Error("Erro na resposta");
-
                 const data = await res.json();
-
-                // Atualizamos os grupos com o que veio do banco (filtrado)
+                
                 setGrupos(data);
-
-                // Resetamos os grupos selecionados no buffer para evitar conflitos
+                // Resetamos os grupos selecionados no buffer para evitar conflitos de usuários diferentes
                 setBuffer(prev => prev.map(item => ({ ...item, grupo_id: "" })));
-
             } catch (error) {
                 console.error("Erro ao carregar grupos:", error);
                 toast.error("Erro ao carregar grupos do usuário.");
@@ -106,275 +101,330 @@ export function MasterControl({ usuarios, gruposInitial = [] }: { usuarios: Usua
         };
 
         fetchGruposDoUsuario();
-    }, [targetUser]); // Removido o gruposInitial daqui para evitar loops infinitos
+    }, [targetUser]);
 
-
-
+    // 2. Função para duplicar linha (Mesma série, configurações diferentes)
     const duplicateItem = (item: PreVenda) => {
         const newItem: PreVenda = {
             ...item,
-            tempId: Math.random().toString(36).substring(7), // Novo ID temporário
-            status: 'idle', // Reseta o status para poder injetar de novo
-            // Mantemos nome, imagem, valor e plataforma, mas deixamos os caps e grupo
-            // para o usuário decidir se quer mudar ou manter
+            tempId: Math.random().toString(36).substring(7),
+            status: 'idle',
         };
 
         setBuffer(prev => {
-            // Encontra a posição do item atual para inserir a cópia logo abaixo dele
             const index = prev.findIndex(i => i.tempId === item.tempId);
             const newBuffer = [...prev];
             newBuffer.splice(index + 1, 0, newItem);
             return newBuffer;
         });
-
         toast.info(`Linha duplicada para ${item.nome}`);
     };
 
+    // 3. Função de Identificação com Barra de Progresso (Sequencial)
     const handleIdentify = async () => {
-        if (!targetUser) return toast.error("Selecione o usuário de destino!")
-        if (!rawLinks.trim()) return toast.error("Insira ao menos um link!")
+        if (!targetUser) return toast.error("Selecione o usuário de destino!");
+        if (!rawLinks.trim()) return toast.error("Insira ao menos um link!");
 
-        setIsIdentifying(true)
-        const links = rawLinks.split(/[\s\n,]+/).filter(l => l.startsWith('http'))
+        setIsIdentifying(true);
+        setProgress(0);
+        
+        const links = rawLinks.split(/[\s\n,]+/).filter(l => l.startsWith('http'));
+        const total = links.length;
+        const novosItensEncontrados: PreVenda[] = [];
 
         try {
-            const res = await fetch('/api/admin/master-control/identify', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ links, user_id: targetUser })
-            })
+            for (let i = 0; i < total; i++) {
+                const url = links[i];
+                setStatusText(`Identificando (${i + 1}/${total}): ${url.substring(0, 30)}...`);
 
-            if (!res.ok) throw new Error("Falha na identificação")
-            const data = await res.json()
+                const res = await fetch('/api/admin/master-control/identify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ links: [url], user_id: targetUser })
+                });
 
-            const novosItens = data.map((item: any) => ({
-                ...item,
-                tempId: Math.random().toString(36).substring(7),
-                status: 'idle',
-                capitulosString: "",
-                quantidade: 0,
-                grupo_id: "", // Inicia vazio para forçar seleção
-                data: new Date().toISOString().split('T')[0]
-            }))
+                if (res.ok) {
+                    const data = await res.json(); // Retorna array de resultados
+                    if (data && data.length > 0) {
+                        const item = data[0];
+                        novosItensEncontrados.push({
+                            ...item,
+                            tempId: Math.random().toString(36).substring(7),
+                            status: 'idle',
+                            capitulosString: "",
+                            quantidade: 0,
+                            // O backend já sugere o grupo_id se houver histórico
+                            data: new Date().toISOString().split('T')[0]
+                        });
+                    }
+                }
+                
+                // Atualiza a barra de progresso
+                setProgress(((i + 1) / total) * 100);
+            }
 
-            setBuffer(prev => [...prev, ...novosItens])
-            setRawLinks("")
-            toast.success(`${novosItens.length} obras identificadas!`)
+            setBuffer(prev => [...prev, ...novosItensEncontrados]);
+            setRawLinks("");
+            toast.success(`${novosItensEncontrados.length} obras processadas com sucesso!`);
+            
         } catch (error) {
-            toast.error("Erro no servidor de identificação.")
+            console.error(error);
+            toast.error("Erro crítico durante o processamento dos links.");
         } finally {
-            setIsIdentifying(false)
+            setIsIdentifying(false);
+            setProgress(0);
+            setStatusText("");
         }
-    }
+    };
 
+    // 4. Registro Individual
     const registerSingle = async (item: PreVenda) => {
-        if (item.status === 'success' || item.status === 'loading') return
-        if (!item.capitulosString) return toast.error(`Defina os caps para ${item.nome}`)
-        if (!item.grupo_id) return toast.error(`Selecione o grupo para ${item.nome}`)
+        if (item.status === 'success' || item.status === 'loading') return;
+        if (!item.capitulosString) return toast.error(`Defina os caps para ${item.nome}`);
+        if (!item.grupo_id) return toast.error(`Selecione o grupo para ${item.nome}`);
 
-        setBuffer(prev => prev.map(i => i.tempId === item.tempId ? { ...i, status: 'loading' } : i))
+        setBuffer(prev => prev.map(i => i.tempId === item.tempId ? { ...i, status: 'loading' } : i));
 
         try {
             const res = await fetch('/api/admin/master-control/register', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    ...item,
-                    user_id: targetUser
-                })
-            })
+                body: JSON.stringify({ ...item, user_id: targetUser })
+            });
 
-            const responseData = await res.json()
-            if (!res.ok) throw new Error(responseData.error || "Erro ao registrar")
+            const responseData = await res.json();
+            if (!res.ok) throw new Error(responseData.error || "Erro ao registrar");
 
-            setBuffer(prev => prev.map(i => i.tempId === item.tempId ? { ...i, status: 'success' } : i))
+            setBuffer(prev => prev.map(i => i.tempId === item.tempId ? { ...i, status: 'success' } : i));
         } catch (err: any) {
-            toast.error(err.message)
-            setBuffer(prev => prev.map(i => i.tempId === item.tempId ? { ...i, status: 'error' } : i))
+            toast.error(err.message);
+            setBuffer(prev => prev.map(i => i.tempId === item.tempId ? { ...i, status: 'error' } : i));
         }
-    }
+    };
 
+    // 5. Registro em Lote (Sequencial)
     const registerAll = async () => {
-        const pendentes = buffer.filter(i => i.status === 'idle' || i.status === 'error')
-        if (pendentes.length === 0) return toast.info("Nenhuma pendência no buffer.")
-        if (pendentes.some(i => !i.grupo_id)) return toast.error("Existem obras sem grupo selecionado!")
+        const pendentes = buffer.filter(i => i.status === 'idle' || i.status === 'error');
+        if (pendentes.length === 0) return toast.info("Nenhuma pendência no buffer.");
+        if (pendentes.some(i => !i.grupo_id)) return toast.error("Existem obras sem grupo selecionado!");
 
         for (const item of pendentes) {
-            await registerSingle(item)
+            await registerSingle(item);
         }
-    }
+    };
 
     const removeItem = (id: string) => {
-        setBuffer(prev => prev.filter(i => i.tempId !== id))
-    }
+        setBuffer(prev => prev.filter(i => i.tempId !== id));
+    };
 
 
-
-
-
-    return (
-        <div className="space-y-6">
-            {/* INPUT DE LINKS (Mantido) */}
-            <Card className="bg-zinc-950 border-primary/20 shadow-2xl">
-                <CardContent className="p-6 space-y-4">
+return (
+    <div className="space-y-6">
+        {/* CARD DE ENTRADA E IDENTIFICAÇÃO */}
+        <Card className="bg-zinc-950 border-primary/20 shadow-2xl overflow-hidden">
+            <CardContent className="p-6 space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                         <label className="text-[10px] font-black uppercase italic text-primary tracking-widest">Registrar Vendas Para:</label>
-                        <Select value={targetUser} onValueChange={setTargetUser}>
-                            <SelectTrigger className="bg-zinc-900 border-white/5 h-12">
+                        <Select value={targetUser} onValueChange={setTargetUser} disabled={isIdentifying}>
+                            <SelectTrigger className="bg-zinc-900 border-white/5 h-12 focus:ring-primary/20">
                                 <SelectValue placeholder="Escolha o vendedor..." />
                             </SelectTrigger>
-                            <SelectContent>
+                            <SelectContent className="bg-zinc-900 border-white/10 text-white">
                                 {usuarios.map(u => (
-                                    <SelectItem key={u.id} value={u.id} className="font-bold">{u.discord_username}</SelectItem>
+                                    <SelectItem key={u.id} value={u.id} className="font-bold focus:bg-primary focus:text-black">
+                                        {u.discord_username}
+                                    </SelectItem>
                                 ))}
                             </SelectContent>
                         </Select>
                     </div>
 
                     <div className="space-y-2">
-                        <label className="text-[10px] font-black uppercase italic text-primary tracking-widest">Links das Obras</label>
+                        <label className="text-[10px] font-black uppercase italic text-primary tracking-widest flex justify-between">
+                            Links das Obras
+                            <span className="text-zinc-500 lowercase font-medium italic">Um por linha ou separado por vírgula</span>
+                        </label>
                         <textarea
-                            className="w-full h-32 bg-zinc-900 border border-white/5 rounded-2xl p-4 text-sm font-mono text-zinc-400 focus:border-primary/50 outline-none transition-all"
+                            className="w-full h-12 bg-zinc-900 border border-white/5 rounded-xl p-3 text-xs font-mono text-zinc-400 focus:border-primary/50 outline-none transition-all focus:h-32"
                             value={rawLinks}
                             onChange={(e) => setRawLinks(e.target.value)}
+                            disabled={isIdentifying}
                             placeholder="Cole os links das obras aqui..."
                         />
                     </div>
+                </div>
 
-                    <Button onClick={handleIdentify} disabled={isIdentifying} className="w-full h-12 font-black uppercase italic tracking-wider">
-                        {isIdentifying ? <Loader2 className="animate-spin mr-2" /> : <Search className="mr-2 h-5 w-5" />}
-                        Identificar e Gerar Buffer
-                    </Button>
-                </CardContent>
-            </Card>
-
-            {/* TABELA DE CONFIRMAÇÃO (BUFFER ATUALIZADO) */}
-            {buffer.length > 0 && (
-                <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    <div className="flex justify-between items-end px-2">
-                        <div>
-                            <h3 className="text-xl font-black uppercase italic tracking-tighter flex items-center gap-2 text-zinc-100">
-                                <Zap className="h-5 w-5 text-primary" /> Buffer de Injeção Automática
-                            </h3>
+                {/* BARRA DE PROGRESSO NEON */}
+                {isIdentifying && (
+                    <div className="space-y-2 animate-in fade-in zoom-in duration-300 py-2">
+                        <div className="flex justify-between items-end">
+                            <span className="text-[9px] font-black uppercase italic text-primary animate-pulse">
+                                {statusText}
+                            </span>
+                            <span className="text-[10px] font-mono text-primary font-bold">{Math.round(progress)}%</span>
                         </div>
-                        <div className="flex gap-2">
-                            <Button variant="outline" size="sm" onClick={() => setBuffer([])} className="text-[10px] font-black uppercase border-red-500/20 text-red-500 hover:bg-red-500/10">
-                                <Trash2 className="h-3 w-3 mr-1" /> Limpar
-                            </Button>
-                            <Button size="sm" onClick={registerAll} className="bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-black uppercase italic shadow-lg shadow-emerald-500/20">
-                                <Play className="h-3 w-3 mr-2" /> Confirmar Todos
-                            </Button>
+                        <div className="h-1.5 w-full bg-zinc-900 rounded-full overflow-hidden border border-white/5">
+                            <div
+                                className="h-full bg-primary transition-all duration-300 ease-out shadow-[0_0_12px_#ccff00]"
+                                style={{ width: `${progress}%` }}
+                            />
                         </div>
                     </div>
+                )}
 
-                    <div className="bg-zinc-950 rounded-[2rem] border border-white/5 overflow-hidden shadow-2xl">
-                        <table className="w-full text-left border-collapse">
-                            <thead className="bg-white/5 text-[9px] font-black uppercase italic text-zinc-500 border-b border-white/5">
-                                <tr>
-                                    <th className="p-4">Série / Origem</th>
-                                    <th className="p-4">Grupo / Scan</th> {/* NOVA COLUNA */}
-                                    <th className="p-4">Preço ($)</th>
-                                    <th className="p-4">Intervalo (Parser)</th>
-                                    <th className="p-4">Data Operação</th>
-                                    <th className="p-4 text-right">Ação</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-white/5">
-                                {buffer.map((item) => (
-                                    <tr key={item.tempId} className={cn(
-                                        "transition-colors",
-                                        item.status === 'success' ? "bg-emerald-500/5 opacity-60" : "hover:bg-white/5"
-                                    )}>
-                                        {/* SÉRIE */}
-                                        <td className="p-4">
-                                            <div className="flex items-center gap-4">
-                                                <img src={item.imagem_url} className="h-12 w-9 object-cover rounded-lg border border-white/10 shadow-lg" />
-                                                <div>
-                                                    <p className="font-black text-sm uppercase italic leading-none mb-1 text-zinc-200">{item.nome}</p>
-                                                    <p className="text-[9px] font-black text-primary uppercase italic opacity-70">{item.plataforma}</p>
-                                                </div>
+                <Button 
+                    onClick={handleIdentify} 
+                    disabled={isIdentifying || !targetUser || !rawLinks.trim()} 
+                    className="w-full h-12 font-black uppercase italic tracking-wider shadow-lg active:scale-[0.98] transition-all"
+                >
+                    {isIdentifying ? (
+                        <Loader2 className="animate-spin mr-2 h-5 w-5" />
+                    ) : (
+                        <Search className="mr-2 h-5 w-5" />
+                    )}
+                    {isIdentifying ? "Processando Lote..." : "Identificar e Gerar Buffer"}
+                </Button>
+            </CardContent>
+        </Card>
+
+        {/* TABELA DE BUFFER COM CABEÇALHO FIXO */}
+        {buffer.length > 0 && (
+            <div className="space-y-4 animate-in slide-in-from-bottom-4 duration-500">
+                <div className="flex justify-between items-center px-2">
+                    <div>
+                        <h3 className="text-xl font-black uppercase italic tracking-tighter flex items-center gap-2 text-zinc-100">
+                            <Zap className="h-5 w-5 text-primary" /> Buffer de Injeção
+                        </h3>
+                        <p className="text-[10px] font-bold text-zinc-500 uppercase italic">
+                            {buffer.filter(i => i.status === 'success').length} de {buffer.length} processados
+                        </p>
+                    </div>
+                    <div className="flex gap-2">
+                        <Button variant="outline" size="sm" onClick={() => setBuffer([])} className="text-[10px] font-black border-red-500/20 text-red-500 hover:bg-red-500/10">
+                            <Trash2 className="h-3 w-3 mr-1" /> Limpar
+                        </Button>
+                        <Button size="sm" onClick={registerAll} className="bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-black uppercase italic">
+                            <Play className="h-3 w-3 mr-2" /> Confirmar Todos
+                        </Button>
+                    </div>
+                </div>
+
+                <div className="bg-zinc-950 rounded-[2rem] border border-white/5 shadow-2xl overflow-hidden max-h-[650px] overflow-y-auto custom-scrollbar">
+                    <table className="w-full text-left border-collapse">
+                        <thead className="sticky top-0 z-20 bg-zinc-900/95 backdrop-blur-md text-[9px] font-black uppercase italic text-zinc-500 border-b border-white/5">
+                            <tr>
+                                <th className="p-4">Série / Origem</th>
+                                <th className="p-4">Grupo / Scan</th>
+                                <th className="p-4">Preço (R$)</th>
+                                <th className="p-4">Intervalo (Parser)</th>
+                                <th className="p-4">Data Operação</th>
+                                <th className="p-4 text-right">Ação</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-white/5">
+                            {buffer.map((item) => (
+                                <tr key={item.tempId} className={cn(
+                                    "transition-colors",
+                                    item.status === 'success' ? "bg-emerald-500/5 opacity-60" : "hover:bg-white/5"
+                                )}>
+                                    {/* SÉRIE */}
+                                    <td className="p-4">
+                                        <div className="flex items-center gap-4">
+                                            <img src={item.imagem_url} className="h-12 w-9 object-cover rounded-lg border border-white/10 shadow-lg" />
+                                            <div>
+                                                <p className="font-black text-sm uppercase italic leading-none mb-1 text-zinc-200">{item.nome}</p>
+                                                <p className="text-[9px] font-black text-primary uppercase italic opacity-70">{item.plataforma}</p>
                                             </div>
-                                        </td>
+                                        </div>
+                                    </td>
 
-                                        {/* SELEÇÃO DE GRUPO (NOVO) */}
-                                        <td className="p-4">
-                                            <select
-                                                value={item.grupo_id}
-                                                disabled={item.status === 'success' || isLoadingGrupos}
-                                                onChange={e => setBuffer(prev => prev.map(i => i.tempId === item.tempId ? { ...i, grupo_id: e.target.value } : i))}
-                                                className="h-8 w-full max-w-[150px] bg-zinc-900 border border-white/10 rounded-lg px-2 text-[10px] font-black uppercase italic text-primary outline-none focus:border-primary/50 disabled:opacity-50"
-                                            >
-                                                <option value="">
-                                                    {isLoadingGrupos ? "Carregando..." : "Selecionar Grupo..."}
-                                                </option>
-                                                {grupos.map(g => (
-                                                    <option key={g.id} value={g.id}>{g.nome}</option>
-                                                ))}
-                                            </select>
-                                            {grupos.length === 0 && targetUser && !isLoadingGrupos && (
-                                                <p className="text-[8px] text-red-500 mt-1 uppercase font-bold">Usuário sem grupos!</p>
-                                            )}
-                                        </td>
+                                    {/* GRUPO */}
+                                    <td className="p-4">
+                                        <select
+                                            value={item.grupo_id}
+                                            disabled={item.status === 'success' || isLoadingGrupos}
+                                            onChange={e => setBuffer(prev => prev.map(i => i.tempId === item.tempId ? { ...i, grupo_id: e.target.value } : i))}
+                                            className="h-8 w-full max-w-[150px] bg-zinc-900 border border-white/10 rounded-lg px-2 text-[10px] font-black uppercase italic text-primary outline-none focus:border-primary/50 disabled:opacity-50"
+                                        >
+                                            <option value="">{isLoadingGrupos ? "Carregando..." : "Selecionar..."}</option>
+                                            {grupos.map(g => (
+                                                <option key={g.id} value={g.id}>{g.nome}</option>
+                                            ))}
+                                        </select>
+                                    </td>
 
-                                        {/* INTERVALO */}
-                                        <td className="p-4">
-                                            <div className="space-y-1">
-                                                <Input
-                                                    type="text"
-                                                    placeholder="Ex: 1-10"
-                                                    value={item.capitulosString}
-                                                    disabled={item.status === 'success'}
-                                                    onChange={e => {
-                                                        const val = e.target.value;
-                                                        const total = parseCapitulosCount(val);
-                                                        setBuffer(prev => prev.map(i => i.tempId === item.tempId ? { ...i, capitulosString: val, quantidade: total } : i));
-                                                    }}
-                                                    className="h-8 w-28 bg-zinc-900 border-white/5 text-xs font-mono font-bold text-zinc-300"
-                                                />
-                                                <p className="text-[8px] font-black text-emerald-400 uppercase italic">= {item.quantidade} registros</p>
-                                            </div>
-                                        </td>
+                                    {/* PREÇO */}
+                                    <td className="p-4">
+                                        <Input
+                                            type="number"
+                                            step="0.01"
+                                            value={item.valor}
+                                            disabled={item.status === 'success'}
+                                            onChange={e => setBuffer(prev => prev.map(i => i.tempId === item.tempId ? { ...i, valor: Number(e.target.value) } : i))}
+                                            className="h-8 w-20 bg-zinc-900 border-white/5 text-xs font-mono font-bold text-emerald-400"
+                                        />
+                                    </td>
 
-                                        {/* DATA */}
-                                        <td className="p-4">
+                                    {/* INTERVALO */}
+                                    <td className="p-4">
+                                        <div className="space-y-1">
                                             <Input
-                                                type="date"
-                                                value={item.data}
+                                                type="text"
+                                                placeholder="Ex: 1-10"
+                                                value={item.capitulosString}
                                                 disabled={item.status === 'success'}
-                                                onChange={e => setBuffer(prev => prev.map(i => i.tempId === item.tempId ? { ...i, data: e.target.value } : i))}
-                                                className="h-8 w-32 bg-zinc-900 border-white/5 text-[10px] font-bold uppercase text-zinc-400"
+                                                onChange={e => {
+                                                    const val = e.target.value;
+                                                    const total = parseCapitulosCount(val);
+                                                    setBuffer(prev => prev.map(i => i.tempId === item.tempId ? { ...i, capitulosString: val, quantidade: total } : i));
+                                                }}
+                                                className="h-8 w-28 bg-zinc-900 border-white/5 text-xs font-mono font-bold text-zinc-300"
                                             />
-                                        </td>
+                                            <p className="text-[8px] font-black text-emerald-400 uppercase italic leading-none">
+                                                = {item.quantidade} registros
+                                            </p>
+                                        </div>
+                                    </td>
 
-                                        {/* AÇÃO */}
-                                        <td className="p-4 text-right">
+                                    {/* DATA */}
+                                    <td className="p-4">
+                                        <Input
+                                            type="date"
+                                            value={item.data}
+                                            disabled={item.status === 'success'}
+                                            onChange={e => setBuffer(prev => prev.map(i => i.tempId === item.tempId ? { ...i, data: e.target.value } : i))}
+                                            className="h-8 w-32 bg-zinc-900 border-white/5 text-[10px] font-bold uppercase text-zinc-400"
+                                        />
+                                    </td>
+
+                                    {/* AÇÃO */}
+                                    <td className="p-4 text-right">
+                                        <div className="flex justify-end gap-2 items-center">
                                             {item.status === 'success' ? (
-                                                <div className="flex justify-end gap-2 items-center">
-                                                    {/* Mesmo se deu sucesso, permitimos duplicar para registrar em outro lugar */}
+                                                <>
                                                     <Button
                                                         size="icon"
                                                         variant="ghost"
                                                         onClick={() => duplicateItem(item)}
-                                                        className="h-8 w-8 text-zinc-400 hover:text-primary"
-                                                        title="Duplicar para outro registro"
+                                                        className="h-8 w-8 text-zinc-400 hover:text-primary transition-colors"
+                                                        title="Duplicar série"
                                                     >
                                                         <Copy className="h-4 w-4" />
                                                     </Button>
                                                     <CheckCircle2 className="h-6 w-6 text-emerald-500 animate-in zoom-in" />
-                                                </div>
+                                                </>
                                             ) : (
-                                                <div className="flex justify-end gap-2">
-                                                    {/* BOTÃO DE DUPLICAR / MAIS */}
+                                                <>
                                                     <Button
                                                         size="icon"
                                                         variant="ghost"
                                                         onClick={() => duplicateItem(item)}
                                                         className="h-8 w-8 text-zinc-400 hover:text-blue-400 transition-colors"
-                                                        title="Adicionar outra entrada desta série"
+                                                        title="Adicionar outra entrada"
                                                     >
                                                         <Plus className="h-4 w-4" />
                                                     </Button>
-
                                                     <Button
                                                         size="icon"
                                                         variant="ghost"
@@ -383,7 +433,6 @@ export function MasterControl({ usuarios, gruposInitial = [] }: { usuarios: Usua
                                                     >
                                                         <Trash2 className="h-4 w-4" />
                                                     </Button>
-
                                                     <Button
                                                         size="sm"
                                                         disabled={item.status === 'loading'}
@@ -392,16 +441,17 @@ export function MasterControl({ usuarios, gruposInitial = [] }: { usuarios: Usua
                                                     >
                                                         {item.status === 'loading' ? <Loader2 className="animate-spin h-3 w-3" /> : "Injetar"}
                                                     </Button>
-                                                </div>
+                                                </>
                                             )}
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
                 </div>
-            )}
-        </div>
-    )
+            </div>
+        )}
+    </div>
+);
 }

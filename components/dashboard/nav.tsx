@@ -56,7 +56,7 @@ export function DashboardNav({ user }: NavProps) {
     { href: "/dashboard/produtos", label: "Produtos", icon: Package },
     { href: "/dashboard/vendas", label: "Vendas", icon: ShoppingCart },
     { href: "/dashboard/exportar", label: "Exportar", icon: Download },
-    { href: "/dashboard/configuracoes", label: "Configurações", icon: Settings },
+
   ]
 
   if (user.role === 'admin') {
@@ -78,7 +78,7 @@ export function DashboardNav({ user }: NavProps) {
         <div className="mr-4 hidden md:flex">
           <Link href="/dashboard" className="mr-6 flex items-center gap-2">
             <ShoppingCart className="h-6 w-6 text-primary" />
-            <span className="font-black uppercase italic tracking-tighter">Yakuza Rawss</span>
+            <span className="font-black uppercase italic tracking-tighter">Yakuza Raws</span>
           </Link>
           <nav className="flex items-center gap-1">
             {navItems.map((item) => (
@@ -171,6 +171,14 @@ export function DashboardNav({ user }: NavProps) {
                     </Link>
                   </DropdownMenuItem>
                 )}
+
+                <DropdownMenuItem asChild className="cursor-pointer font-black uppercase italic text-[10px] text-primary focus:bg-primary/5">
+                  <Link href="/dashboard/configuracoes">
+                    <Settings className="mr-2 h-4 w-4" />
+                      Meu Perfil
+                  </Link>
+
+                </DropdownMenuItem>
 
                 <DropdownMenuItem
                   className="cursor-pointer text-destructive focus:text-destructive focus:bg-destructive/5 font-black uppercase italic text-[10px]"
