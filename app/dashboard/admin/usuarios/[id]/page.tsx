@@ -19,11 +19,15 @@ export default async function UserDetailsPage(props: {
   // 1. BUSCA DADOS VIA API 
   // Note o caminho: /api/admin/user/${userId} (conforme sua foto do VS Code)
   const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
-  const res = await fetch(`${baseUrl}/api/admin/user/${userId}`, {
-      headers: await headers(),
-      next: { revalidate: 0 }
-  });
+const reqHeaders = await headers();
+const cookie = reqHeaders.get("cookie");
 
+const res = await fetch(`${baseUrl}/api/admin/user/${userId}`, {
+    headers: {
+        "cookie": cookie || "", // Repassa apenas a sessão
+    },
+    next: { revalidate: 0 }
+});
   if (!res.ok) {
     console.error("Erro na busca da API:", res.status);
     return notFound();
