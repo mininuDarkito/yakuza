@@ -54,7 +54,7 @@ export function RevenueChart({ data }: { data: RevenueData[] }) {
                 fontSize={10}
                 tickLine={false}
                 axisLine={false}
-                tickFormatter={(value) => `R$${value}`}
+                tickFormatter={(value) => `$${value}`}
               />
               <Tooltip 
                 content={({ active, payload }) => {

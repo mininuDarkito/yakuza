@@ -205,7 +205,7 @@ export function EditVendasAdmin({ usuarios, grupos = [] }: EditVendasProps) {
                                         {item.total_caps_vendidos} caps total
                                     </span>
                                     <span className="text-emerald-500 font-mono text-[9px] font-bold">
-                                        R$ {Number(item.faturamento_serie || 0).toFixed(2)}
+                                        $ {Number(item.faturamento_serie || 0).toFixed(2)}
                                     </span>
                                 </div>
                             </div>
@@ -234,7 +234,7 @@ export function EditVendasAdmin({ usuarios, grupos = [] }: EditVendasProps) {
                         <div className="bg-emerald-500/10 border border-emerald-500/20 px-4 py-2 rounded-2xl flex flex-col items-end">
                             <span className="text-[8px] font-black text-emerald-500 uppercase tracking-widest leading-none">Subtotal do Período</span>
                             <span className="text-xl font-black text-emerald-500 italic tracking-tighter">
-                                R$ {history.reduce((acc, curr) => acc + Number(curr.preco_total || 0), 0).toFixed(2)}
+                                $ {history.reduce((acc, curr) => acc + Number(curr.preco_total || 0), 0).toFixed(2)}
                             </span>
                         </div>
                     </div>
@@ -278,7 +278,7 @@ export function EditVendasAdmin({ usuarios, grupos = [] }: EditVendasProps) {
                                                 {editingId === v.id ? (
                                                     <Input type="number" step="0.01" className="h-7 w-20 bg-zinc-900 text-xs border-white/10" value={editForm.preco_unitario} onChange={e => setEditForm({ ...editForm, preco_unitario: e.target.value })} />
                                                 ) : (
-                                                    `R$${Number(v.preco_unitario).toFixed(2)}`
+                                                    `$${Number(v.preco_unitario).toFixed(2)}`
                                                 )}
                                             </td>
                                             <td className="p-4 text-center">

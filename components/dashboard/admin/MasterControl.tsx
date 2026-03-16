@@ -236,7 +236,7 @@ export function MasterControl({ usuarios, gruposInitial = [] }: { usuarios: Usua
                                 <tr>
                                     <th className="p-4">Série / Origem</th>
                                     <th className="p-4">Grupo / Scan</th> {/* NOVA COLUNA */}
-                                    <th className="p-4">Preço (R$)</th>
+                                    <th className="p-4">Preço ($)</th>
                                     <th className="p-4">Intervalo (Parser)</th>
                                     <th className="p-4">Data Operação</th>
                                     <th className="p-4 text-right">Ação</th>

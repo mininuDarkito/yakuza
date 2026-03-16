@@ -252,7 +252,7 @@ export function ProdutoForm({ produto, grupos }: ProdutoFormProps) {
                 name="preco"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-xs font-black uppercase italic text-primary">Preço por Capítulo (R$)</FormLabel>
+                    <FormLabel className="text-xs font-black uppercase italic text-primary">Preço por Capítulo ($)</FormLabel>
                     <FormControl>
                       <Input
                         placeholder="0,00"

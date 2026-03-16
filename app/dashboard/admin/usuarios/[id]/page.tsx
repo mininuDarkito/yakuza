@@ -142,7 +142,7 @@ export default async function UserDetailsPage(props: { params: Promise<{ id: str
                 <CardContent className="p-4 text-center">
                   <p className="text-[10px] font-black uppercase text-zinc-500 mb-1">{m.mes_nome}</p>
                   <p className="text-sm font-black text-primary italic leading-none font-mono">
-                    R$ {Number(m.total).toFixed(2)}
+                    $ {Number(m.total).toFixed(2)}
                   </p>
                 </CardContent>
               </Card>
@@ -165,7 +165,7 @@ export default async function UserDetailsPage(props: { params: Promise<{ id: str
                   </div>
                   <div className="text-right">
                     <p className="text-xs font-black text-emerald-500 italic">{p.qtd} UN</p>
-                    <p className="text-[9px] font-bold text-zinc-500 uppercase font-mono">R$ {p.receita}</p>
+                    <p className="text-[9px] font-bold text-zinc-500 uppercase font-mono">$ {p.receita}</p>
                   </div>
                 </div>
               ))}
@@ -227,7 +227,7 @@ export default async function UserDetailsPage(props: { params: Promise<{ id: str
                           </p>
                         </TableCell>
                         <TableCell className="text-right">
-                          <span className="font-mono font-black text-emerald-500 text-sm">R$ {v.preco_total}</span>
+                          <span className="font-mono font-black text-emerald-500 text-sm">$ {v.preco_total}</span>
                         </TableCell>
                       </TableRow>
                     ))}

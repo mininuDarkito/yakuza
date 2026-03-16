@@ -120,7 +120,7 @@ export default async function ConfigPage() {
               <CardContent className="p-4 text-center">
                 <p className="text-[10px] font-black uppercase text-zinc-500 mb-1">{m.mes_nome}</p>
                 <p className="text-sm font-black text-primary italic leading-none font-mono">
-                  R$ {Number(m.total).toFixed(2)}
+                  $ {Number(m.total).toFixed(2)}
                 </p>
               </CardContent>
             </Card>

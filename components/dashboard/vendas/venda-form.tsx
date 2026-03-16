@@ -278,7 +278,7 @@ export function VendaForm({ grupos, produtos, initialProdutoId }: VendaFormProps
                 name="preco_unitario"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="font-black uppercase text-[10px] tracking-widest text-zinc-400">Preço p/ Capítulo (R$)</FormLabel>
+                    <FormLabel className="font-black uppercase text-[10px] tracking-widest text-zinc-400">Preço p/ Capítulo ($)</FormLabel>
                     <FormControl>
                       <Input 
                         placeholder="0,00" 
