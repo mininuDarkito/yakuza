@@ -14,13 +14,23 @@ export default async function ConfigPage() {
   const userId = session?.user?.id
 
   if (!userId) return notFound();
+// 1. Pega os headers originais
+const requestHeaders = await headers();
 
-  // 1. BUSCA DADOS VIA API (Usando a rota que já configuramos)
-  const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
-  const res = await fetch(`${baseUrl}/api/admin/user/${userId}`, {
-      headers: await headers(), // Crucial para passar o cookie de sessão para a API
-      next: { revalidate: 0 }
-  });
+// 2. Cria uma nova instância para manipular
+const safeHeaders = new Headers(requestHeaders);
+
+// 3. REMOVE os cabeçalhos que causam o erro de "invalid connection"
+safeHeaders.delete("connection");
+safeHeaders.delete("keep-alive");
+// Opcional: safeHeaders.delete("host"); // Às vezes o host original causa conflito em Docker/Vercel
+
+const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
+
+const res = await fetch(`${baseUrl}/api/admin/user/${userId}`, {
+    headers: safeHeaders, 
+    next: { revalidate: 0 }
+});
 
   if (!res.ok) return notFound();
 
