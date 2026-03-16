@@ -69,13 +69,46 @@ export function MasterControl({ usuarios, gruposInitial = [] }: { usuarios: Usua
     const [isIdentifying, setIsIdentifying] = useState(false)
     const [buffer, setBuffer] = useState<PreVenda[]>([])
     const [grupos, setGrupos] = useState<Grupo[]>(gruposInitial)
+    const [isLoadingGrupos, setIsLoadingGrupos] = useState(false)
 
     // Busca grupos se não vierem via props
     useEffect(() => {
-        if (gruposInitial.length === 0) {
-            fetch('/api/admin/grupos/list').then(res => res.json()).then(setGrupos)
-        }
-    }, [gruposInitial])
+        const fetchGruposDoUsuario = async () => {
+            // Se não tem usuário selecionado, limpamos a lista e paramos aqui
+            if (!targetUser) {
+                setGrupos([]);
+                return;
+            }
+
+            setIsLoadingGrupos(true);
+
+            try {
+                // Chamamos APENAS a rota filtrada
+                const res = await fetch(`/api/admin/grupos/list?userId=${targetUser}`);
+
+                if (!res.ok) throw new Error("Erro na resposta");
+
+                const data = await res.json();
+
+                // Atualizamos os grupos com o que veio do banco (filtrado)
+                setGrupos(data);
+
+                // Resetamos os grupos selecionados no buffer para evitar conflitos
+                setBuffer(prev => prev.map(item => ({ ...item, grupo_id: "" })));
+
+            } catch (error) {
+                console.error("Erro ao carregar grupos:", error);
+                toast.error("Erro ao carregar grupos do usuário.");
+                setGrupos([]);
+            } finally {
+                setIsLoadingGrupos(false);
+            }
+        };
+
+        fetchGruposDoUsuario();
+    }, [targetUser]); // Removido o gruposInitial daqui para evitar loops infinitos
+
+
 
     const duplicateItem = (item: PreVenda) => {
         const newItem: PreVenda = {
@@ -175,6 +208,10 @@ export function MasterControl({ usuarios, gruposInitial = [] }: { usuarios: Usua
         setBuffer(prev => prev.filter(i => i.tempId !== id))
     }
 
+
+
+
+
     return (
         <div className="space-y-6">
             {/* INPUT DE LINKS (Mantido) */}
@@ -263,27 +300,20 @@ export function MasterControl({ usuarios, gruposInitial = [] }: { usuarios: Usua
                                         <td className="p-4">
                                             <select
                                                 value={item.grupo_id}
-                                                disabled={item.status === 'success'}
+                                                disabled={item.status === 'success' || isLoadingGrupos}
                                                 onChange={e => setBuffer(prev => prev.map(i => i.tempId === item.tempId ? { ...i, grupo_id: e.target.value } : i))}
-                                                className="h-8 w-full max-w-[150px] bg-zinc-900 border border-white/10 rounded-lg px-2 text-[10px] font-black uppercase italic text-primary outline-none focus:border-primary/50"
+                                                className="h-8 w-full max-w-[150px] bg-zinc-900 border border-white/10 rounded-lg px-2 text-[10px] font-black uppercase italic text-primary outline-none focus:border-primary/50 disabled:opacity-50"
                                             >
-                                                <option value="">Selecionar...</option>
+                                                <option value="">
+                                                    {isLoadingGrupos ? "Carregando..." : "Selecionar Grupo..."}
+                                                </option>
                                                 {grupos.map(g => (
                                                     <option key={g.id} value={g.id}>{g.nome}</option>
                                                 ))}
                                             </select>
-                                        </td>
-
-                                        {/* PREÇO */}
-                                        <td className="p-4">
-                                            <Input
-                                                type="number"
-                                                step="0.01"
-                                                value={item.valor}
-                                                disabled={item.status === 'success'}
-                                                onChange={e => setBuffer(prev => prev.map(i => i.tempId === item.tempId ? { ...i, valor: Number(e.target.value) } : i))}
-                                                className="h-8 w-20 bg-zinc-900 border-white/5 text-xs font-mono font-bold text-emerald-400"
-                                            />
+                                            {grupos.length === 0 && targetUser && !isLoadingGrupos && (
+                                                <p className="text-[8px] text-red-500 mt-1 uppercase font-bold">Usuário sem grupos!</p>
+                                            )}
                                         </td>
 
                                         {/* INTERVALO */}

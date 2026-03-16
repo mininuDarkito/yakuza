@@ -3,27 +3,39 @@ import { sql } from "@/lib/db";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
-export async function GET() {
+export async function GET(request: Request) {
+    const { searchParams } = new URL(request.url);
+    const userId = searchParams.get('userId');
+
     try {
         // 1. Verificação de Sessão e Role
         const session = await getServerSession(authOptions);
-
+        
         if (!session || session.user?.role !== 'admin') {
             return NextResponse.json(
-                { error: "Acesso não autorizado. Apenas administradores podem listar grupos." }, 
+                { error: "Acesso não autorizado." }, 
                 { status: 403 }
             );
         }
 
-        // 2. Consulta ao Banco de Dados
-        // Buscamos apenas o ID e o Nome, ordenados alfabeticamente
-        const res = await sql.query(`
-            SELECT id, nome 
-            FROM grupos 
-            ORDER BY nome ASC
-        `);
+        let query = "";
+        let values: any[] = [];
 
-        // 3. Retorno dos Dados
+        if (userId && userId !== "undefined") {
+            // Ajustado para usar a coluna user_id que existe no seu Model Grupo do Prisma
+            query = `
+                SELECT id, nome
+                FROM grupos
+                WHERE user_id = $1
+                ORDER BY nome ASC
+            `;
+            values = [userId];
+        } else {
+            // Se não passar userId, lista todos os grupos do sistema
+            query = `SELECT id, nome FROM grupos ORDER BY nome ASC`;
+        }
+
+        const res = await sql.query(query, values);
         return NextResponse.json(res.rows);
 
     } catch (error: any) {
