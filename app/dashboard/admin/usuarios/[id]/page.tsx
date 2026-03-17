@@ -6,6 +6,7 @@ import { Wallet, ArrowLeft, Award } from "lucide-react"
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import { headers } from "next/headers"
+import { PaymentGateway } from "@/components/dashboard/PaymentGateway"
 
 export const dynamic = "force-dynamic";
 
@@ -49,6 +50,12 @@ const res = await fetch(`${baseUrl}/api/admin/user/${userId}`, {
 
         <PerformanceCycle userId={userId} viewMode="admin" />
 
+        <PaymentGateway 
+  userId={userId} 
+  initialData={user.billing_setup} 
+  viewMode="admin" 
+/>
+
         <div className="grid gap-8 lg:grid-cols-12">
           {/* RANKING */}
           <div className="lg:col-span-4 space-y-4">
@@ -69,33 +76,6 @@ const res = await fetch(`${baseUrl}/api/admin/user/${userId}`, {
                 </div>
               ))}
             </div>
-          </div>
-
-          {/* GATEWAY PIX */}
-          <div className="lg:col-span-8 space-y-4">
-            <h2 className="text-xl font-black uppercase italic tracking-tighter flex items-center gap-2">
-              <Wallet className="h-5 w-5 text-primary" /> Gateway de Pagamento (PIX)
-            </h2>
-            <Card className="bg-zinc-950 border-white/5 overflow-hidden">
-              <CardContent className="p-8 grid md:grid-cols-2 gap-8">
-                <div className="space-y-4">
-                  <div className="bg-white/5 p-4 rounded-xl border border-white/5">
-                    <p className="text-[10px] font-black text-zinc-500 uppercase mb-1">Titular da Conta</p>
-                    <p className="text-sm font-black uppercase italic">{billing.nome_beneficiario || "NÃO CADASTRADO"}</p>
-                  </div>
-                  <div className="bg-white/5 p-4 rounded-xl border border-white/5">
-                    <p className="text-[10px] font-black text-zinc-500 uppercase mb-1">Tipo de Identificador</p>
-                    <p className="text-sm font-black uppercase italic">{billing.tipo_chave || "N/A"}</p>
-                  </div>
-                </div>
-                <div className="flex flex-col justify-center gap-3 bg-primary/5 p-6 rounded-3xl border border-primary/20">
-                  <p className="text-[10px] font-black text-primary uppercase text-center italic">Chave Destinatária Ativa</p>
-                  <div className="text-center font-mono text-sm font-black break-all select-all">
-                    {billing.chave_pix || "AGUARDANDO CONFIGURAÇÃO"}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
           </div>
         </div>
       </div>

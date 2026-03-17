@@ -90,7 +90,7 @@ export function PerformanceCycle({ userId, viewMode }: PerformanceProps) {
     }, [detailedSales, eixoX, metrica, viewMode])
 
     return (
-        <div className="space-y-6 animate-in fade-in duration-700">
+        <div className="space-y-6 animate-in fade-in duration-700 text-white" > 
             <div className="flex justify-between items-center">
                 <h2 className="text-xl font-black uppercase italic tracking-tighter flex items-center gap-2 text-primary">
                     <Calendar className="h-5 w-5" /> Ciclo de Performance
@@ -129,13 +129,13 @@ export function PerformanceCycle({ userId, viewMode }: PerformanceProps) {
                                     {nome}
                                 </p>
                                 <p className="text-sm font-black text-white italic leading-none font-mono">
-                                    R$ {stats ? Number(stats.total).toFixed(2) : "0.00"}
+                                    $ {stats ? Number(stats.total).toFixed(2) : "0.00"}
                                 </p>
 
                                 {viewMode === 'admin' && (
                                     <div className={cn(
                                         "absolute top-1 right-1 transition-all",
-                                        isSelected ? "opacity-100 rotate-90" : "opacity-0 group-hover:opacity-100"
+                                        isSelected ? "opacity-100 rotate-90" : "opacity-0 group-hover:opacity-80"
                                     )}>
                                         <ChevronRight className="h-2 w-2 text-primary" />
                                     </div>
@@ -178,7 +178,7 @@ export function PerformanceCycle({ userId, viewMode }: PerformanceProps) {
                                 <Select value={metrica} onValueChange={setMetrica}>
                                     <SelectTrigger className="w-[140px] h-9 bg-zinc-900 border-white/10 text-[10px] font-bold uppercase italic text-white focus:ring-primary"><SelectValue /></SelectTrigger>
                                     <SelectContent className="bg-zinc-900 border-white/10 text-white">
-                                        <SelectItem value="preco_total">Faturamento (R$)</SelectItem>
+                                        <SelectItem value="preco_total">Faturamento ($)</SelectItem>
                                         <SelectItem value="quantidade">Capítulos (UN)</SelectItem>
                                     </SelectContent>
                                 </Select>
@@ -191,9 +191,9 @@ export function PerformanceCycle({ userId, viewMode }: PerformanceProps) {
                         </div>
                     </div>
 
-                    <div className="h-[350px] w-full pt-4">
+                    <div className="h-[350px] w-full pt-4 text-white">
                         {isLoading ? (
-                            <div className="h-full flex items-center justify-center font-black uppercase italic text-zinc-800 animate-pulse tracking-[0.2em]">Sincronizando...</div>
+                            <div className="h-full flex items-center justify-center font-black uppercase italic text-zinc-100 animate-pulse tracking-[0.2em]">Sincronizando...</div>
                         ) : chartData.length > 0 ? (
                             <ResponsiveContainer width="100%" height="100%">
                                 {tipoGrafico === "barra" ? (
@@ -203,7 +203,7 @@ export function PerformanceCycle({ userId, viewMode }: PerformanceProps) {
                                         <YAxis dataKey="name" type="category" width={140} fontSize={10} fontWeight="900" tick={{ fill: '#71717a' }} tickLine={false} axisLine={false} />
                                         <Tooltip
                                             contentStyle={{ backgroundColor: '#09090b', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', fontSize: '10px', color: '#fff' }}
-                                            formatter={(val) => metrica === 'preco_total' ? `R$ ${Number(val).toFixed(2)}` : `${val} Unidades`}
+                                            formatter={(val) => metrica === 'preco_total' ? `$ ${Number(val).toFixed(2)}` : `${val} Unidades`}
                                         />
                                         <Bar dataKey="value" radius={[0, 10, 10, 0]} barSize={25}>
                                             {chartData.map((entry, i) => (
@@ -218,7 +218,7 @@ export function PerformanceCycle({ userId, viewMode }: PerformanceProps) {
                                         </Bar>
                                     </BarChart>
                                 ) : (
-                                    <PieChart>
+                                    <PieChart className='text-white'>
                                         <Pie
                                             data={chartData}
                                             dataKey="value"
@@ -230,7 +230,7 @@ export function PerformanceCycle({ userId, viewMode }: PerformanceProps) {
                                         >
                                             {chartData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} stroke="none" />)}
                                         </Pie>
-                                        <Tooltip formatter={(val) => metrica === 'preco_total' ? `R$ ${Number(val).toFixed(2)}` : `${val} Unidades`} />
+                                        <Tooltip  formatter={(val) => metrica === 'preco_total' ? `$ ${Number(val).toFixed(2)}` : `${val} Unidades`} />
                                         <Legend verticalAlign="bottom" height={36} wrapperStyle={{ fontSize: '10px', fontWeight: '900', textTransform: 'uppercase', color: '#71717a' }} />
                                     </PieChart>
                                 )}

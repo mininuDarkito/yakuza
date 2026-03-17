@@ -65,6 +65,8 @@ export default async function AdminPage() {
   const allUsers = usersRes.rows;
   const allGrupos = gruposRes.rows;
 
+  
+
   return (
     <AdminGate>
       <div className="flex flex-col gap-8 p-6 max-w-7xl mx-auto min-h-screen">
@@ -93,7 +95,7 @@ export default async function AdminPage() {
             <TabsTrigger value="operations" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-black uppercase text-[10px] py-2">
               <GanttChartSquare className="h-3.5 w-3.5 mr-2" /> Operações
             </TabsTrigger>
-            <TabsTrigger value="edit-vendas" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-black uppercase text-[10px] py-2">
+            <TabsTrigger value="auditoria" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-black uppercase text-[10px] py-2">
               <Edit3 className="h-3.5 w-3.5 mr-2" /> Ajustes
             </TabsTrigger>
             <TabsTrigger value="catalog" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-black uppercase text-[10px] py-2">
@@ -164,13 +166,18 @@ export default async function AdminPage() {
             <MasterControl usuarios={allUsers} />
           </TabsContent>
 
-          {/* ABA 3: AJUSTES (EDIT VENDAS) */}
-          <TabsContent value="edit-vendas" className="space-y-4 animate-in fade-in duration-500">
-            <div className="flex items-center gap-2 mb-6 text-primary">
-                <Edit3 className="h-5 w-5" />
-                <h2 className="text-xl font-black uppercase italic tracking-tighter">Correção de Lançamentos</h2>
-            </div>
-            <EditVendasAdmin usuarios={allUsers} grupos={allGrupos} />
+{/* CONTEÚDO: AUDITORIA (O componente que você atualizou) */}
+          <TabsContent value="auditoria" className="space-y-4 animate-in slide-in-from-bottom-4 duration-500">
+             <div className="flex flex-col gap-1 mb-4">
+                <h2 className="text-2xl font-black uppercase italic tracking-tighter">Central de Auditoria</h2>
+                <p className="text-zinc-500 text-[10px] font-bold uppercase italic">Corrija lançamentos, vincule grupos e sele o faturamento mensal</p>
+             </div>
+
+             {/* IMPORTANTE: Passando todos os usuários e grupos para o Admin poder tudo */}
+             <EditVendasAdmin 
+                usuarios={allUsers} 
+                grupos={allGrupos} 
+             />
           </TabsContent>
 
           {/* ABA 4: CATALOG */}
