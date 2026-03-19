@@ -1,5 +1,5 @@
 import { getServerSession } from "next-auth"
-import { notFound } from "next/navigation"
+import { notFound, redirect } from "next/navigation"
 import { authOptions } from "@/lib/auth"
 import { sql } from "@/lib/db"
 import { GrupoForm } from "@/components/dashboard/grupos/grupo-form"
@@ -10,37 +10,38 @@ export default async function EditarGrupoPage({
   params: Promise<{ id: string }>
 }) {
   const session = await getServerSession(authOptions)
-  const userId = session?.user?.id
   const { id } = await params
 
-  // Verificação de segurança
-  if (!userId) {
-    return <div>Acesso negado.</div>
+  // Segurança: Só Admins podem editar grupos globais
+  if (session?.user?.role !== 'admin') {
+    redirect("/dashboard/grupos")
   }
 
-  // Usando o método .query para garantir compatibilidade com o seu driver 'pg'
   const res = await sql.query(
-    "SELECT * FROM grupos WHERE id = $1 AND user_id = $2",
-    [id, userId]
+    "SELECT * FROM grupos WHERE id = $1",
+    [id]
   )
 
   const grupo = res.rows[0]
 
-  // Se o grupo não existir ou não pertencer ao usuário, 404
   if (!grupo) {
     notFound()
   }
 
   return (
-    <div className="flex flex-col gap-6 p-6">
+    <div className="flex flex-col gap-8 p-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Editar Grupo</h1>
-        <p className="text-muted-foreground">
-          Atualize as informações do grupo: <strong>{grupo.nome}</strong>
+        <h1 className="text-3xl font-black uppercase italic tracking-tighter text-white">
+          Editar <span className="text-primary">Grupo Global</span>
+        </h1>
+        <p className="text-zinc-500 font-bold italic text-xs uppercase tracking-widest mt-1">
+          Modificando: <span className="text-zinc-300">{grupo.nome}</span>
         </p>
       </div>
 
-      <GrupoForm grupo={grupo} />
+      <div className="max-w-3xl">
+        <GrupoForm grupo={grupo} />
+      </div>
     </div>
   )
 }

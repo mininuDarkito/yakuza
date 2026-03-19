@@ -4,9 +4,9 @@ import { authOptions } from "@/lib/auth"
 import { sql } from "@/lib/db"
 import { z } from "zod"
 
-// Validação dos dados que vêm do VendaForm
 const vendaSchema = z.object({
   produto_id: z.string().uuid("Série inválida"),
+  grupo_id: z.string().uuid("Grupo inválido"), // Agora obrigatório vir do Form
   capitulos: z.array(z.number().int()).min(1, "Informe ao menos um capítulo"),
   preco_unitario: z.number().positive("Preço deve ser positivo"),
   observacoes: z.string().optional(),
@@ -21,12 +21,17 @@ export async function GET(request: Request) {
   if (!userId) return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
 
   const { searchParams } = new URL(request.url)
-  const grupoId = searchParams.get("grupo_id")
-  const startDate = searchParams.get("start_date")
-  const endDate = searchParams.get("end_date")
+  const mes = searchParams.get("mes")
+  const ano = searchParams.get("ano")
 
+  // Query otimizada para o novo design (traz faturamento e dados da obra)
   let query = `
-    SELECT v.*, p.nome as produto_nome, g.nome as grupo_nome
+    SELECT 
+      v.*, 
+      p.nome as produto_nome, 
+      p.imagem_url as produto_imagem,
+      p.plataforma as produto_plataforma,
+      g.nome as grupo_nome
     FROM vendas v
     JOIN produtos p ON v.produto_id = p.id
     JOIN grupos g ON v.grupo_id = g.id
@@ -34,13 +39,9 @@ export async function GET(request: Request) {
   `
   const values: any[] = [userId]
 
-  if (grupoId) {
-    values.push(grupoId)
-    query += ` AND v.grupo_id = $${values.length}`
-  }
-  if (startDate && endDate) {
-    values.push(startDate, endDate)
-    query += ` AND v.data_venda >= $${values.length - 1} AND v.data_venda <= $${values.length}`
+  if (mes && ano) {
+    values.push(mes, ano)
+    query += ` AND EXTRACT(MONTH FROM v.data_venda) = $2 AND EXTRACT(YEAR FROM v.data_venda) = $3`
   }
 
   query += ` ORDER BY v.data_venda DESC, v.created_at DESC`
@@ -60,40 +61,34 @@ export async function POST(request: Request) {
     const body = await request.json()
     const data = vendaSchema.parse(body)
 
-    // 1. Validar vínculo do usuário com a série e pegar o grupo_id
+    // 1. Validar se o vínculo específico existe (User + Produto + Grupo)
     const resVinculo = await sql.query(`
-      SELECT us.grupo_id 
-      FROM user_series us
-      WHERE us.produto_id = $1 AND us.user_id = $2 AND us.ativo = true
-    `, [data.produto_id, userId])
+      SELECT id FROM user_series 
+      WHERE produto_id = $1 AND user_id = $2 AND grupo_id = $3 AND ativo = true
+    `, [data.produto_id, userId, data.grupo_id])
 
-    const vinculo = resVinculo.rows[0]
-    if (!vinculo) {
-      return NextResponse.json({ error: "Série não configurada ou inativa." }, { status: 404 })
+    if (resVinculo.rowCount === 0) {
+      return NextResponse.json({ error: "Vínculo com este grupo não encontrado ou inativo." }, { status: 404 })
     }
 
-    // 2. CONSULTA GLOBAL: Verificar quais capítulos já foram registrados para este grupo
-    // Isso evita duplicatas antes de tentar inserir
+    // 2. Verificar duplicatas no grupo específico
     const resExistentes = await sql.query(`
       SELECT quantidade FROM vendas 
       WHERE user_id = $1 AND produto_id = $2 AND grupo_id = $3 AND quantidade = ANY($4)
-    `, [userId, data.produto_id, vinculo.grupo_id, data.capitulos])
+    `, [userId, data.produto_id, data.grupo_id, data.capitulos])
 
     const capsExistentes = resExistentes.rows.map(r => r.quantidade)
-    
-    // Filtramos apenas os capítulos que ainda NÃO existem no banco
     const capsParaSalvar = data.capitulos.filter(cap => !capsExistentes.includes(cap))
 
     if (capsParaSalvar.length === 0) {
       return NextResponse.json({ 
-        error: "Todos os capítulos selecionados já foram registrados para este grupo." 
+        error: "Capítulo(s) já registrado(s) neste grupo." 
       }, { status: 400 })
     }
 
     const dataVendaFinal = data.data_venda ? new Date(data.data_venda) : new Date()
     const vendasRegistradas = []
 
-    // 3. TRANSAÇÃO SQL (Garante que salve tudo ou nada)
     await sql.query("BEGIN")
 
     try {
@@ -108,24 +103,22 @@ export async function POST(request: Request) {
         `, [
           userId, 
           data.produto_id, 
-          vinculo.grupo_id, 
+          data.grupo_id, 
           cap, 
           data.preco_unitario, 
-          data.preco_unitario, 
+          data.preco_unitario, // preco_total por capítulo
           data.observacoes || null, 
           dataVendaFinal.toISOString()
         ])
-        
         vendasRegistradas.push(resVenda.rows[0])
       }
 
       await sql.query(`
-        INSERT INTO activity_logs (user_id, action, entity_type, entity_id)
-        VALUES ($1, 'bulk_create_venda', 'venda', $2)
-      `, [userId, data.produto_id])
+        INSERT INTO activity_logs (user_id, action, entity_type, entity_id, details)
+        VALUES ($1, 'venda_lote', 'venda', $2, $3)
+      `, [userId, data.produto_id, JSON.stringify({ caps: capsParaSalvar, grupo: data.grupo_id })])
 
       await sql.query("COMMIT")
-
     } catch (dbError) {
       await sql.query("ROLLBACK")
       throw dbError
@@ -133,15 +126,11 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ 
       message: `${vendasRegistradas.length} capítulo(s) registrado(s).`,
-      pulados: capsExistentes.length,
       vendas: vendasRegistradas 
     }, { status: 201 })
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("Erro na API de Vendas:", error)
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: "Dados inválidos", details: error.errors }, { status: 400 })
-    }
-    return NextResponse.json({ error: "Erro interno ao processar vendas" }, { status: 500 })
+    return NextResponse.json({ error: error.message || "Erro interno" }, { status: 500 })
   }
 }

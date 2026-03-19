@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/select"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { CalendarIcon, ImagePlus, Loader2, Info } from "lucide-react"
+import { CalendarIcon, ImagePlus, Loader2, Info, CheckCircle2, Badge } from "lucide-react"
 import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { cn } from "@/lib/utils"
@@ -37,9 +37,8 @@ import Link from "next/link"
 const formSchema = z.object({
   grupo_id: z.string().min(1, "Selecione um grupo"),
   produto_id: z.string().min(1, "Selecione uma série"),
-  capitulo_raw: z.string().min(1, "Informe o capítulo ou intervalo (ex: 10 ou 10-15)"),
+  capitulo_raw: z.string().min(1, "Informe o capítulo ou intervalo"),
   preco_unitario: z.string().min(1, "Preço é obrigatório"),
-  plataforma: z.string().optional(),
   observacoes: z.string().optional(),
   data_venda: z.date().optional(),
 })
@@ -53,16 +52,10 @@ interface Produto {
   preco: string | number; 
   grupo_id: string;
   imagem_url?: string | null;
-  plataforma: string 
+  plataforma: string | null;
 }
 
-interface VendaFormProps {
-  grupos: Grupo[]
-  produtos: Produto[]
-  initialProdutoId?: string
-}
-
-export function VendaForm({ grupos, produtos, initialProdutoId }: VendaFormProps) {
+export function VendaForm({ grupos, produtos, initialProdutoId }: { grupos: Grupo[], produtos: Produto[], initialProdutoId?: string }) {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
 
@@ -78,44 +71,33 @@ export function VendaForm({ grupos, produtos, initialProdutoId }: VendaFormProps
     },
   })
 
-  // Efeito para preencher automaticamente os dados se vier um ID inicial do catálogo
   useEffect(() => {
-    if (initialProdutoId) {
-      const p = produtos.find(prod => prod.id === initialProdutoId)
-      if (p) {
-        form.setValue("produto_id", p.id)
-        form.setValue("preco_unitario", String(p.preco).replace(".", ","))
-        form.setValue("grupo_id", p.grupo_id)
-        form.setValue("plataforma", p.plataforma)
-      }
+    // Se vier pelo catálogo, procuramos o vínculo (us.id)
+    const p = produtos.find(prod => prod.id === initialProdutoId || prod.nome === initialProdutoId)
+    if (p) {
+      form.setValue("produto_id", p.id)
+      form.setValue("preco_unitario", String(p.preco).replace(".", ","))
+      form.setValue("grupo_id", p.grupo_id)
     }
   }, [initialProdutoId, produtos, form])
 
   const selectedProdutoId = form.watch("produto_id")
   const capituloRaw = form.watch("capitulo_raw")
   const precoUnitario = form.watch("preco_unitario")
-  const plataformaa = form.watch("plataforma") 
 
   const selectedProduto = useMemo(() => 
     produtos.find((p) => p.id === selectedProdutoId), 
   [selectedProdutoId, produtos])
 
-  // Lógica de processamento do campo "Capítulo / Intervalo"
   const calculoCapitulos = useMemo(() => {
     if (!capituloRaw) return { totalItens: 0, lista: [] }
-    
     if (capituloRaw.includes("-")) {
       const parts = capituloRaw.split("-")
-      const inicio = parseInt(parts[0]?.trim())
-      const fim = parseInt(parts[1]?.trim())
-      
+      const inicio = parseInt(parts[0]?.trim()), fim = parseInt(parts[1]?.trim())
       if (isNaN(inicio) || isNaN(fim) || inicio > fim) return { totalItens: 0, lista: [] }
-      
-      const lista = []
-      for (let i = inicio; i <= fim; i++) lista.push(i)
+      const lista = []; for (let i = inicio; i <= fim; i++) lista.push(i)
       return { totalItens: lista.length, lista }
     }
-    
     const cap = parseInt(capituloRaw.trim())
     return isNaN(cap) ? { totalItens: 0, lista: [] } : { totalItens: 1, lista: [cap] }
   }, [capituloRaw])
@@ -126,65 +108,48 @@ export function VendaForm({ grupos, produtos, initialProdutoId }: VendaFormProps
   }, [calculoCapitulos, precoUnitario])
 
   const onSubmit = async (data: FormData) => {
-    if (calculoCapitulos.totalItens === 0) {
-      toast.error("Capítulo ou intervalo inválido")
-      return
-    }
-
     setIsLoading(true)
     try {
       const response = await fetch("/api/vendas", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          produto_id: data.produto_id,
+          produto_id: selectedProduto?.id, // ID da user_series
           capitulos: calculoCapitulos.lista,
           preco_unitario: parseFloat(data.preco_unitario.replace(",", ".")),
-          observacoes: data.observacoes || undefined,
+          grupo_id: data.grupo_id,
           data_venda: data.data_venda?.toISOString(),
+          observacoes: data.observacoes
         }),
       })
 
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || "Erro ao registrar")
-      }
-
-      toast.success(`${calculoCapitulos.totalItens} capítulo(s) registrado(s)!`)
+      if (!response.ok) throw new Error("Erro ao registrar venda")
+      toast.success("Venda registrada com sucesso!")
       router.push("/dashboard/vendas")
       router.refresh()
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Erro ao processar venda")
+    } catch (error: any) {
+      toast.error(error.message)
     } finally {
       setIsLoading(false)
     }
   }
 
   return (
-    <Card className="max-w-2xl border-2 border-zinc-200 shadow-xl overflow-hidden bg-card">
+    <Card className="border-2 border-white/5 bg-zinc-950 shadow-2xl overflow-hidden rounded-[2.5rem]">
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)}>
-          <CardContent className="pt-8 space-y-8">
+          <CardContent className="pt-10 space-y-10">
             
-            {/* CABEÇALHO VISUAL: CAPA + SELEÇÃO */}
-            <div className="flex flex-col sm:flex-row gap-8 items-center sm:items-start">
-              <div className="relative h-64 w-44 shrink-0 overflow-hidden rounded-2xl border-4 border-white shadow-2xl bg-zinc-100 ring-1 ring-zinc-200">
+            <div className="flex flex-col sm:flex-row gap-10 items-center sm:items-start">
+              <div className="relative h-72 w-48 shrink-0 overflow-hidden rounded-[2rem] border-4 border-white/5 shadow-2xl bg-black ring-1 ring-white/10 group">
                 {selectedProduto?.imagem_url ? (
-                  <img 
-                    src={selectedProduto.imagem_url} 
-                    alt="Capa" 
-                    className="h-full w-full object-cover" 
-                  />
+                  <img src={selectedProduto.imagem_url} className="h-full w-full object-cover transition-transform group-hover:scale-110 duration-500" alt="Capa" />
                 ) : (
-                  <div className="flex h-full items-center justify-center text-zinc-300">
-                    <ImagePlus className="h-12 w-12 opacity-20" />
-                  </div>
+                  <div className="flex h-full items-center justify-center opacity-20"><ImagePlus size={40} /></div>
                 )}
-                {selectedProduto && (
-                   <div className="absolute top-2 right-2 bg-emerald-500 text-white px-2 py-1 rounded-md text-[10px] font-black uppercase  shadow-lg">
-                      Ativo
-                   </div>
-                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4">
+                   <p className="text-[10px] font-black text-primary uppercase italic tracking-widest">Preview</p>
+                </div>
               </div>
 
               <div className="flex-1 w-full space-y-6">
@@ -193,7 +158,7 @@ export function VendaForm({ grupos, produtos, initialProdutoId }: VendaFormProps
                   name="produto_id"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-xs font-black uppercase  tracking-widest text-zinc-500">Série Selecionada</FormLabel>
+                      <FormLabel className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 italic">Obra Selecionada</FormLabel>
                       <Select
                         onValueChange={(val) => {
                           field.onChange(val)
@@ -206,19 +171,18 @@ export function VendaForm({ grupos, produtos, initialProdutoId }: VendaFormProps
                         value={field.value}
                       >
                         <FormControl>
-                          <SelectTrigger className="h-14 text-xl font-black  tracking-tighter border-2 focus:ring-primary">
+                          <SelectTrigger className="h-16 text-xl font-black bg-white/5 border-white/10 rounded-2xl focus:ring-primary focus:border-primary">
                             <SelectValue placeholder="Escolha a série..." />
                           </SelectTrigger>
                         </FormControl>
-                        <SelectContent>
+                        <SelectContent className="bg-zinc-900 border-white/10">
                           {produtos.map((p) => (
-                            <SelectItem key={p.id} value={p.id} className="py-3 text-lg font-bold uppercase ">
+                            <SelectItem key={p.id} value={p.id} className="py-3 text-lg font-bold uppercase italic focus:bg-primary">
                               {p.nome}
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
-                      <FormMessage />
                     </FormItem>
                   )}
                 />
@@ -228,47 +192,38 @@ export function VendaForm({ grupos, produtos, initialProdutoId }: VendaFormProps
                   name="grupo_id"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-xs font-black uppercase  tracking-widest text-zinc-500">Grupo de Destino</FormLabel>
+                      <FormLabel className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 italic">Canal de Registro</FormLabel>
                       <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
-                          <SelectTrigger className="border-2 font-bold uppercase  h-11">
+                          <SelectTrigger className="bg-white/5 border-white/10 font-black italic uppercase h-12 rounded-xl">
                             <SelectValue placeholder="Selecione o grupo" />
                           </SelectTrigger>
                         </FormControl>
-                        <SelectContent>
+                        <SelectContent className="bg-zinc-900 border-white/10">
                           {grupos.map((g) => (
-                            <SelectItem key={g.id} value={g.id} className="font-bold uppercase ">{g.nome}</SelectItem>
+                            <SelectItem key={g.id} value={g.id} className="font-bold uppercase italic">{g.nome}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
-                      <FormMessage />
-
-                    
                     </FormItem>
-
-                    
-
-
                   )}
                 />
               </div>
             </div>
 
-            {/* FINANCEIRO E CAPÍTULOS */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 rounded-2xl border-2 border-zinc-100 border-dashed">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 p-8 rounded-[2rem] bg-white/[0.02] border-2 border-white/5 border-dashed">
               <FormField
                 control={form.control}
                 name="capitulo_raw"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="font-black uppercase text-[10px] tracking-widest text-zinc-400">Capítulo / Intervalo</FormLabel>
+                    <FormLabel className="font-black uppercase text-[10px] tracking-widest text-zinc-500 italic">Capítulo / Lote</FormLabel>
                     <FormControl>
-                      <Input placeholder="Ex: 10 ou 10-15" {...field} className="h-12 font-mono text-xl font-black border-2 focus:border-primary" />
+                      <Input placeholder="Ex: 10 ou 10-15" {...field} className="h-14 font-mono text-2xl font-black bg-black/40 border-white/5 focus:border-primary" />
                     </FormControl>
-                    <div className="flex items-center gap-1 mt-1 text-[9px] font-bold text-zinc-400 uppercase ">
-                       <Info className="h-3 w-3" /> Use "-" para registrar lote
+                    <div className="flex items-center gap-1 mt-1 text-[9px] font-bold text-zinc-600 uppercase italic">
+                       <Info size={12} /> Use "-" para registrar múltiplos
                     </div>
-                    <FormMessage />
                   </FormItem>
                 )}
               />
@@ -278,100 +233,80 @@ export function VendaForm({ grupos, produtos, initialProdutoId }: VendaFormProps
                 name="preco_unitario"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="font-black uppercase text-[10px] tracking-widest text-zinc-400">Preço p/ Capítulo ($)</FormLabel>
+                    <FormLabel className="font-black uppercase text-[10px] tracking-widest text-zinc-500 italic">Preço Unitário</FormLabel>
                     <FormControl>
-                      <Input 
-                        placeholder="0,00" 
-                        {...field} 
-                        className="h-12 text-xl font-black text-emerald-600 border-2 focus:border-emerald-500"
-                        onChange={(e) => field.onChange(e.target.value.replace(/[^\d,]/g, ""))} 
-                      />
+                      <Input placeholder="0,00" {...field} className="h-14 text-2xl font-black text-emerald-400 bg-black/40 border-white/5 focus:border-emerald-500" onChange={(e) => field.onChange(e.target.value.replace(/[^\d,]/g, ""))} />
                     </FormControl>
-                    <FormMessage />
                   </FormItem>
                 )}
               />
             </div>
 
-            {/* RESUMO DE REGISTROS DINÂMICO */}
             {totalGeral > 0 && (
-              <div className="flex items-center justify-between p-6 bg-zinc-950 rounded-2xl text-white shadow-2xl transform transition-all animate-in zoom-in-95 duration-200">
+              <div className="flex items-center justify-between p-8 bg-primary rounded-[2rem] text-black shadow-[0_20px_50px_rgba(0,0,0,0.5)] transform transition-all animate-in slide-in-from-bottom-4">
                 <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-50">Total a Receber</p>
-                  <p className="text-4xl font-black  tracking-tighter text-emerald-400">
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60">Total a Receber</p>
+                  <p className="text-5xl font-black tracking-tighter">
                     {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(totalGeral)}
                   </p>
                 </div>
                 <div className="flex flex-col items-end">
-                  <span className="bg-white/10 px-4 py-1 rounded-full text-[10px] font-black uppercase  border border-white/10 mb-1">
-                    {calculoCapitulos.totalItens} Item(ns)
-                  </span>
-                  <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest ">Nexus Billing v2</span>
+                  <Badge className="bg-black text-white px-4 py-1 text-[10px] font-black uppercase italic rounded-full mb-2">
+                    {calculoCapitulos.totalItens} CAPÍTULOS
+                  </Badge>
+                  <span className="text-[9px] font-black uppercase tracking-widest opacity-40 italic">Checkout Seguro</span>
                 </div>
               </div>
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <FormField
                 control={form.control}
                 name="data_venda"
                 render={({ field }) => (
                   <FormItem className="flex flex-col">
-                    <FormLabel className="text-xs font-black uppercase  tracking-widest text-zinc-500">Data do Registro</FormLabel>
+                    <FormLabel className="text-[10px] font-black uppercase tracking-widest text-zinc-500 italic">Data da Venda</FormLabel>
                     <Popover>
                       <PopoverTrigger asChild>
                         <FormControl>
-                          <Button 
-                            variant="outline" 
-                            className={cn("w-full h-12 border-2 pl-3 text-left font-bold uppercase  text-xs", !field.value && "text-muted-foreground")}
-                          >
+                          <Button variant="outline" className={cn("w-full h-12 bg-white/5 border-white/10 rounded-xl font-bold italic", !field.value && "text-muted-foreground")}>
                             {field.value ? format(field.value, "PPP", { locale: ptBR }) : <span>Selecione a data</span>}
                             <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                           </Button>
                         </FormControl>
                       </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
+                      <PopoverContent className="w-auto p-0 bg-zinc-900 border-white/10" align="start">
                         <Calendar mode="single" selected={field.value} onSelect={field.onChange} disabled={(date) => date > new Date()} locale={ptBR} initialFocus />
                       </PopoverContent>
                     </Popover>
-                    <FormMessage />
                   </FormItem>
                 )}
               />
-
               <FormField
                 control={form.control}
                 name="observacoes"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-xs font-black uppercase  tracking-widest text-zinc-500">Notas de Venda</FormLabel>
+                    <FormLabel className="text-[10px] font-black uppercase tracking-widest text-zinc-500 italic">Observações</FormLabel>
                     <FormControl>
-                      <Textarea placeholder="Opcional..." {...field} className="min-h-[48px] h-[48px] resize-none border-2 font-bold text-xs" />
+                      <Textarea placeholder="Opcional..." {...field} className="h-12 min-h-[48px] bg-white/5 border-white/10 rounded-xl font-bold text-xs" />
                     </FormControl>
-                    <FormMessage />
                   </FormItem>
                 )}
               />
             </div>
           </CardContent>
 
-          <CardFooter className="flex justify-between items-center border-t-2 p-8 mt-4">
-            <Button variant="ghost" asChild className="text-zinc-400 font-bold uppercase text-[10px] tracking-widest hover:bg-transparent hover:text-zinc-600">
-              <Link href="/dashboard/vendas">Cancelar</Link>
+          <CardFooter className="p-10 bg-white/[0.01] border-t border-white/5 flex justify-between items-center">
+            <Button variant="ghost" asChild className="text-zinc-500 font-black uppercase italic text-[10px] tracking-widest">
+              <Link href="/dashboard/vendas">Descartar</Link>
             </Button>
             <Button 
               type="submit" 
-              disabled={isLoading || calculoCapitulos.totalItens === 0 || !selectedProdutoId} 
-              className="px-12 h-14 text-xl font-black uppercase  tracking-tighter shadow-[0_10px_40px_-10px_rgba(0,0,0,0.3)] transition-all hover:translate-y-[-4px] active:scale-[0.98] active:translate-y-0"
+              disabled={isLoading || totalGeral === 0} 
+              className="px-12 h-16 text-xl font-black uppercase italic tracking-tighter bg-primary text-black rounded-2xl shadow-2xl hover:scale-105 transition-all active:scale-95"
             >
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-6 w-6 animate-spin" />
-                  Salvando...
-                </>
-              ) : (
-                `Registrar ${calculoCapitulos.totalItens > 1 ? "em Lote" : "Venda"}`
-              )}
+              {isLoading ? <Loader2 className="animate-spin" /> : <><CheckCircle2 className="mr-2 h-6 w-6" /> Finalizar Registro</>}
             </Button>
           </CardFooter>
         </form>

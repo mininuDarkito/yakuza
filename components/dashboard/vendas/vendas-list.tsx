@@ -5,7 +5,7 @@ import { format } from "date-fns"
 import {
   ImagePlus, MoreHorizontal, Trash2, Lock,
   ChevronDown, ChevronUp, Layers, Search, Globe, Loader2,
-  Users, Group
+  Users, Group, PlusCircle
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -23,6 +23,7 @@ import { ptBR } from 'date-fns/locale';
 
 import { VendasStats } from "@/components/dashboard/vendas/VendasStats"
 import { useSession } from "next-auth/react"
+import Link from "next/link"
 
 // --- INTERFACES ---
 interface Grupo { nome: string }
@@ -42,29 +43,26 @@ interface Venda {
   lock_admin: boolean
   produto: Produto
   grupo: Grupo
+  produto_id: string 
 }
 
 export function VendasList({ userId: initialUserId }: { userId: string, initialMes: string, initialAno: string }) {
   const { data: session } = useSession()
   const router = useRouter()
 
-  // Estados de Dados
   const [vendas, setVendas] = useState<Venda[]>([])
   const [loading, setLoading] = useState(true)
   const [usuarios, setUsuarios] = useState<{ id: string, discord_username: string }[]>([])
 
-  // Estados de Filtro de Data
   const [mes, setMes] = useState(new Date().getMonth() + 1)
   const [ano, setAno] = useState(new Date().getFullYear())
 
-  // Estados de UI
   const [expandedSeries, setExpandedSeries] = useState<string[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [plataformaFilter, setPlataformaFilter] = useState("todas")
   const [grupoFilter, setGrupoFilter] = useState("todas")
   const [selectedUserId, setSelectedUserId] = useState(initialUserId)
 
-  // 1. Busca lista de usuários se for ADMIN
   useEffect(() => {
     if (session?.user?.role === 'admin') {
       fetch('/api/admin/user/list')
@@ -76,7 +74,6 @@ export function VendasList({ userId: initialUserId }: { userId: string, initialM
     }
   }, [session])
 
-  // 2. Fetch das Vendas
   useEffect(() => {
     async function loadVendas() {
       setLoading(true)
@@ -94,7 +91,6 @@ export function VendasList({ userId: initialUserId }: { userId: string, initialM
     if (selectedUserId) loadVendas()
   }, [selectedUserId, mes, ano])
 
-  // 3. Lógica de Filtragem
   const filteredVendas = (vendas || []).filter(venda => {
     const nomePrincipal = (venda?.produto?.nome || "").toLowerCase();
     const nomeAlt = (venda?.produto?.nome_alternativo || "").toLowerCase();
@@ -110,12 +106,16 @@ export function VendasList({ userId: initialUserId }: { userId: string, initialM
     return matchesSearch && matchesPlataforma && matchesGrupo;
   });
 
-  // 4. Lógica de Agrupamento
+  // --- LÓGICA DE AGRUPAMENTO (PONTO CRUCIAL CORRIGIDO) ---
   const groupedVendas = filteredVendas.reduce((acc: any, venda) => {
     const key = venda?.produto?.nome || "Sem Nome"
+    // Captura o ID global da obra para o Link de Ação Rápida
+    const realProdutoId = venda.produto_id || venda.produto?.id;
+
     if (!acc[key]) {
       acc[key] = {
         nome: key,
+        produto_id: realProdutoId, 
         nome_alternativo: venda?.produto?.nome_alternativo,
         imagem: venda?.produto?.imagem_url,
         totalFaturado: 0,
@@ -131,7 +131,6 @@ export function VendasList({ userId: initialUserId }: { userId: string, initialM
   const plataformas = Array.from(new Set(vendas.map(v => v?.produto?.plataforma).filter(Boolean)));
   const grupos = Array.from(new Set(vendas.map(v => v?.grupo?.nome).filter(Boolean)));
 
-  // 5. Cálculos para o VendasStats
   const totalFaturado = filteredVendas.reduce((acc, v) => acc + Number(v.preco_total || 0), 0);
   const totalCapitulos = filteredVendas.length;
   const mediaPorCapitulo = totalCapitulos > 0 ? totalFaturado / totalCapitulos : 0;
@@ -155,7 +154,7 @@ export function VendasList({ userId: initialUserId }: { userId: string, initialM
   if (loading) return (
     <div className="flex flex-col items-center justify-center py-20 gap-4">
       <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      <p className="text-xs font-black uppercase italic">Sincronizando Acervo...</p>
+      <p className="text-xs font-black uppercase italic text-zinc-500">Sincronizando Acervo...</p>
     </div>
   )
 
@@ -169,188 +168,164 @@ export function VendasList({ userId: initialUserId }: { userId: string, initialM
       />
 
       {/* BARRA DE FERRAMENTAS */}
-      <div className="flex flex-col border md:flex-row gap-4 border shadow-sm bg-muted/20 p-4 rounded-[2rem] border-muted/50">
+      <div className="flex flex-col md:flex-row gap-4 shadow-sm bg-muted/20 p-4 rounded-[2rem] border border-white/5">
         {session?.user?.role === 'admin' && (
-          <div className="flex items-center gap-2 px-3 rounded-xl border border-primary/20 h-11 bg-muted/80">
+          <div className="flex items-center gap-2 px-3 rounded-xl border border-white/10 h-11 bg-black/20">
             <Users size={14} className="text-primary" />
             <select 
               value={selectedUserId}
               onChange={(e) => setSelectedUserId(e.target.value)}
-              className="text-[10px]  font-black uppercase italic outline-none min-w-[100px] "
+              className="text-[10px] font-black uppercase italic outline-none bg-transparent "
             >
               {usuarios.map(u => (
-                <option key={u.id} value={u.id} className="bg-muted/80 ">
-                  {u.discord_username}
-                </option>
+                <option key={u.id} value={u.id} className="bg-muted/50 ">{u.discord_username}</option>
               ))}
             </select>
           </div>
         )}
 
-        <div className="relative flex-1 shadow-sm border rounded-2xl">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 " />
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
           <Input
-            placeholder="Buscar por nome ou nome alternativo..."
-            className="pl-9 bg-muted/80 border-none h-11 text-xs font-bold italic"
+            placeholder="PESQUISAR SÉRIE..."
+            className="pl-10 bg-black/20 border-white/10 h-11 text-xs font-black italic uppercase tracking-widest "
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
 
-        <div className="flex flex-wrap gap-2 shadow-sm border rounded-2xl">
-          {/* Filtro de Mês */}
-          <div className="flex shadow-sm border rounded-2xl items-center gap-2 bg-muted/80 px-3 rounded-xl border border-muted/80 h-11">
-            <span className="text-[10px] font-black uppercase italic ">Mês:</span>
+        <div className="flex gap-2">
             <select
               value={mes}
               onChange={(e) => setMes(Number(e.target.value))}
-              className="bg-transparent text-[10px] font-black uppercase italic outline-none "
+              className="bg-black/20 border border-white/10 rounded-xl px-3 text-[10px] font-black uppercase italic "
             >
               {Array.from({ length: 12 }, (_, i) => (
-                <option key={i + 1} value={i + 1} className="bg-muted/80">
+                <option key={i + 1} value={i + 1} className="bg-muted/50">
                   {format(new Date(2024, i, 1), "MMMM", { locale: ptBR })}
                 </option>
               ))}
             </select>
-          </div>
 
-          {/* Filtro de Ano */}
-          <div className="flex items-center gap-2 bg-muted/80 px-3 rounded-xl border border-white/5 h-11 ">
-            <select
-              value={ano}
-              onChange={(e) => setAno(Number(e.target.value))}
-              className="bg-transparent text-[10px] font-black uppercase italic outline-none"
-            >
-              {[2024, 2025, 2026].map(v => (
-                <option key={v} value={v} className="bg-muted/80">{v}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Filtro de Grupo */}
-          <div className="flex items-center gap-2 bg-muted/80 px-3 rounded-xl border border-white/5 h-11 ">
-            <Group size={14} className="" />
             <select
               value={grupoFilter}
               onChange={(e) => setGrupoFilter(e.target.value)}
-              className="bg-transparent text-[10px] font-black uppercase italic outline-none min-w-[100px]"
+              className="bg-black/20 border border-white/10 rounded-xl px-3 text-[10px] font-black uppercase italic  min-w-[120px]"
             >
-              <option value="todas" className="bg-muted/80">Grupos</option>
+              <option value="todas">TODOS GRUPOS</option>
               {grupos.map(g => (
-                <option key={g as string} value={g as string} className="bg-muted/80">{g as string}</option>
+                <option key={g as string} value={g as string} className="bg-muted/50">{g as string}</option>
               ))}
             </select>
-          </div>
-
-          {/* Filtro de Plataforma */}
-          <div className="flex border items-center gap-2 bg-muted/80 px-3 rounded-xl border border-white/5 h-11 ">
-            <Globe size={14} className="" />
-            <select
-              value={plataformaFilter}
-              onChange={(e) => setPlataformaFilter(e.target.value)}
-              className="bg-transparent text-[10px] font-black uppercase italic outline-none min-w-[100px]"
-            >
-              <option value="todas" className="bg-muted/80">Plataformas</option>
-              {plataformas.map(p => (
-                <option key={p as string} value={p as string} className="bg-muted/80">{p as string}</option>
-              ))}
-            </select>
-          </div>
         </div>
       </div>
 
+      {/* LISTA DE SÉRIES */}
       <div className="space-y-3">
         {series.length > 0 ? series.map((group: any) => (
-          <div key={group.nome} className="rounded-[1.5rem] border shadow-sm bg-muted/20 overflow-hidden transition-all">
+          <div key={group.nome} className="rounded-[1.5rem] border-2 bg-muted/50 overflow-hidden transition-all hover:border-white/10 shadow-lg">
             <div
               onClick={() => toggleSerie(group.nome)}
-              className="p-4 flex items-center justify-between cursor-pointer hover:bg-muted/80 transition-colors"
+              className="p-5 flex items-center justify-between cursor-pointer hover:bg-white/[0.02] transition-colors"
             >
               <div className="flex items-center gap-4">
-                <div className="h-12 w-9 rounded-lg overflow-hidden border border-white/10 bg-muted/80 shadow-xl">
+                <div className="h-14 w-10 rounded-xl overflow-hidden border-2 border-white/5 bg-muted shadow-2xl">
                   {group.imagem ? (
                     <img src={group.imagem} className="h-full w-full object-cover" alt="" />
                   ) : (
-                    <div className="h-full w-full flex items-center justify-center "><ImagePlus size={14} /></div>
+                    <div className="h-full w-full flex items-center justify-center"><ImagePlus size={16} className="opacity-20 " /></div>
                   )}
                 </div>
                 <div>
-                  <h3 className="font-black text-sm uppercase italic leading-none">{group.nome}</h3>
-                  {group.nome_alternativo && (
-                    <p className="text-[9px] font-bold uppercase mt-1 italic ">{group.nome_alternativo}</p>
-                  )}
-                  <p className="text-[10px] font-bold text-primary uppercase mt-1 flex items-center gap-1 leading-none">
-                    <Layers size={10} /> {group.itens.length} capítulos
+                  <h3 className="font-black text-base uppercase italic leading-tight ">{group.nome}</h3>
+                  <p className="text-[10px] font-bold text-primary uppercase mt-1 flex items-center gap-1.5 italic leading-none">
+                    <Layers size={10} /> {group.itens.length} CAPÍTULOS LANÇADOS
                   </p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-6 ">
+              <div className="flex items-center gap-8">
+                {/* BOTÃO DE AÇÃO RÁPIDA (REVISADO) */}
+                <Button 
+                  size="sm" 
+                  variant="ghost" 
+                  asChild 
+                  className="h-10 w-10 p-0 hover:bg-primary hover:text-black rounded-2xl transition-all border border-primary/20 bg-primary/5 text-primary shadow-inner"
+                  onClick={(e) => e.stopPropagation()} 
+                >
+                  <Link 
+                    href={`/dashboard/vendas/nova?produto_id=${group.produto_id}`} 
+                    title="Registrar Novo Capítulo"
+                  >
+                    <PlusCircle size={20} />
+                  </Link>
+                </Button>
+
                 <div className="text-right">
-                  <p className="text-[8px] font-black uppercase mb-1 leading-none ">Acumulado</p>
-                  <p className="text-sm font-black text-emerald-500 italic">
+                  <p className="text-[9px] font-black uppercase mb-0.5 opacity-40 italic  leading-none">Acumulado</p>
+                  <p className="text-lg font-black text-emerald-400 italic tracking-tighter leading-none">
                     $ {group.totalFaturado.toFixed(2)}
                   </p>
                 </div>
-                {expandedSeries.includes(group.nome) ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                <div className="text-zinc-600 transition-transform duration-300">
+                  {expandedSeries.includes(group.nome) ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                </div>
               </div>
             </div>
 
+            {/* TABELA DE ITENS */}
             {expandedSeries.includes(group.nome) && (
-              <div className="border border-white/5 bg-muted/80 animate-in slide-in-from-top-2 duration-300">
-                <table className="w-full ">
-                  <thead className="text-[9px] font-black uppercase border-b border-white/5 ">
+              <div className="border-t border-white/5 bg-black/40 animate-in slide-in-from-top-2 duration-300">
+                <table className="w-full">
+                  <thead className="text-[10px] font-black uppercase bg-white/[0.02]">
                     <tr>
-                      <th className="px-4 py-2 text-left font-black italic">Data</th>
-                      <th className="px-4 py-2 text-left font-black italic">Plataforma / Grupo</th>
-                      <th className="px-4 py-2 text-center font-black italic">Cap.</th>
-                      <th className="px-4 py-2 text-right font-black italic">Valor</th>
-                      <th className="px-4 py-2 w-10"></th>
+                      <th className="px-6 py-3 text-left italic text-zinc-500 tracking-widest">Data</th>
+                      <th className="px-6 py-3 text-left italic text-zinc-500 tracking-widest">Origem / Grupo</th>
+                      <th className="px-6 py-3 text-center italic text-zinc-500 tracking-widest">Cap.</th>
+                      <th className="px-6 py-3 text-right italic text-zinc-500 tracking-widest">Valor</th>
+                      <th className="px-6 py-3 w-16"></th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/5">
                     {group.itens.map((venda: Venda) => {
-                      const isLocked = venda.lock_user || venda.lock_admin
+                      const isLocked = venda.lock_user || venda.lock_admin;
                       return (
-                        <tr key={venda.id} className={cn("group transition-colors", isLocked ? "opacity-40" : "hover:bg-white/[0.02]")}>
-                          <td className="px-4 py-3 text-[10px] font-bold">
-                            {venda.data_venda ? format(new Date(venda.data_venda), "dd/MM/yy") : "---"}
+                        <tr key={venda.id} className={cn("transition-colors", isLocked ? "opacity-30" : "hover:bg-white/[0.03]")}>
+                          <td className="px-6 py-4 text-[11px] font-bold text-zinc-300 italic">
+                            {venda.data_venda ? format(new Date(venda.data_venda), "dd/MM/yy") : "--/--/--"}
                           </td>
-                          <td className="px-4 py-3">
-                            <div className="flex gap-1 items-center">
-                              <span className="text-[8px] font-black uppercase bg-primary text-black px-1.5 py-0.5 rounded italic">
+                          <td className="px-6 py-4">
+                            <div className="flex gap-2 items-center">
+                              <span className="text-[9px] font-black uppercase bg-primary/10 text-primary px-2 py-0.5 rounded-md border border-primary/20 italic">
                                 {venda?.produto?.plataforma || "---"}
                               </span>
-                              <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded border border-white/5 italic 0">
-                                {venda?.grupo?.nome || "Sem Grupo"}
+                              <span className="text-[10px] font-black uppercase text-zinc-400 italic">
+                                {venda?.grupo?.nome || "GLOBAL"}
                               </span>
                             </div>
                           </td>
-                          <td className="px-4 py-3 text-center text-xs font-black italic">
+                          <td className="px-6 py-4 text-center text-sm font-black italic ">
                             #{venda.quantidade}
                           </td>
-                          <td className="px-4 py-3 text-right font-mono text-[11px] font-bold text-emerald-500">
+                          <td className="px-6 py-4 text-right font-mono text-sm font-black text-emerald-400">
                             $ {Number(venda.preco_total).toFixed(2)}
                           </td>
-                          <td className="px-4 py-3">
+                          <td className="px-6 py-4 text-center">
                             {!isLocked ? (
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-white/10 "><MoreHorizontal size={14} /></Button>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-white/10 rounded-xl text-zinc-500"><MoreHorizontal size={16} /></Button>
                                 </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="bg-muted/80 border-white/10 ">
-                                  <DropdownMenuItem
-                                    className="text-red-500 font-bold text-[10px] uppercase italic focus:bg-red-500/10 focus:text-red-500"
-                                    onClick={() => handleDelete(venda)}
-                                  >
-                                    <Trash2 className="mr-2 h-3 w-3" /> Excluir
+                                <DropdownMenuContent align="end" className="bg-muted/50 border-white/10 ">
+                                  <DropdownMenuItem className="text-red-500 font-black text-[10px] uppercase italic focus:bg-red-500/10 focus:text-red-500" onClick={() => handleDelete(venda)}>
+                                    <Trash2 className="mr-2 h-3 w-3" /> Excluir Registro
                                   </DropdownMenuItem>
                                 </DropdownMenuContent>
                               </DropdownMenu>
-                            ) : <Lock size={10} className="mx-auto " />}
+                            ) : <Lock size={12} className="mx-auto text-zinc-700" />}
                           </td>
                         </tr>
-                      )
+                      );
                     })}
                   </tbody>
                 </table>
@@ -358,8 +333,8 @@ export function VendasList({ userId: initialUserId }: { userId: string, initialM
             )}
           </div>
         )) : (
-          <div className="py-20 border border-dashed border-white/10 rounded-[2rem] text-center bg-muted/5">
-            <p className="font-black uppercase italic text-[10px] tracking-widest ">Nenhum lançamento registrado no período</p>
+          <div className="py-24 border-2 border-dashed border-white/5 rounded-[3rem] text-center bg-zinc-950/20">
+            <p className="font-black uppercase italic text-xs tracking-[0.3em] text-zinc-600">Nenhum faturamento registrado</p>
           </div>
         )}
       </div>

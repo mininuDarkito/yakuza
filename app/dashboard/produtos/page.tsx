@@ -9,61 +9,69 @@ import Link from "next/link"
 export default async function ProdutosPage() {
   const session = await getServerSession(authOptions)
   const userId = session?.user?.id
+  const userRole = session?.user?.role
 
-  // Verificação de segurança
   if (!userId) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <p className="text-muted-foreground">Acesso negado. Por favor, faça login.</p>
+        <p className="text-zinc-500 font-black italic uppercase">Acesso negado. Faça login.</p>
       </div>
     )
   }
 
   /**
-   * QUERY GLOBAL ATUALIZADA:
-   * 1. Buscamos as colunas fixas da tabela 'produtos' (Catálogo)
-   * 2. Buscamos Preço e Ativo da tabela 'user_series' (Seus dados)
-   * 3. Buscamos o Nome do Grupo da tabela 'grupos'
-   * Usamos LEFT JOIN para que séries que você ainda não configurou também apareçam.
+   * QUERY ATUALIZADA:
+   * 1. Usamos INNER JOIN em user_series para trazer APENAS o que VOCÊ registrou.
+   * 2. Trazemos o us.id como 'vinculo_id' para o seu componente deletar/editar o registro certo.
+   * 3. Filtramos por us.user_id = $1 para você não ver as séries do Jakson ou do Dark.
    */
   const res = await sql.query(`
     SELECT 
-      p.id,
+      p.id as produto_id,
       p.nome,
       p.descricao,
       p.imagem_url,
       p.link_serie,
       p.plataforma,
       p.created_at,
-      COALESCE(us.preco, 0) as preco, 
-      COALESCE(us.ativo, true) as ativo,
-      COALESCE(g.nome, 'Sem Grupo') as grupo_nome
+      us.id as id, -- ID da tabela user_series (PK do vínculo)
+      us.preco, 
+      us.ativo,
+      g.nome as grupo_nome
     FROM produtos p
-    LEFT JOIN user_series us ON p.id = us.produto_id AND us.user_id = $1
-    LEFT JOIN grupos g ON us.grupo_id = g.id
-    ORDER BY p.created_at DESC
+    INNER JOIN user_series us ON p.id = us.produto_id
+    INNER JOIN grupos g ON us.grupo_id = g.id
+    WHERE us.user_id = $1
+    ORDER BY p.nome ASC, g.nome ASC
   `, [userId])
 
   const produtos = res.rows
 
   return (
-    <div className="flex flex-col gap-6 p-4">
-      <div className="flex items-center justify-between">
+    <div className="flex flex-col gap-8 p-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Catálogo de Séries</h1>
-          <p className="text-muted-foreground">
-            Explore o catálogo global e defina seus preços de venda.
+          <h1 className="text-4xl font-black tracking-tighter uppercase italic text-white">
+            Meus <span className="text-primary text-2xl">Registros</span>
+          </h1>
+          <p className="text-zinc-500 font-bold italic text-xs uppercase tracking-widest mt-1">
+            Gerencie as obras que você está vendendo nos canais do Discord.
           </p>
         </div>
-        <Button asChild className="bg-primary hover:bg-primary/90">
+        
+        {/* Botão de Adicionar Série permanece para todos os vendedores poderem vincular novas obras */}
+        <Button asChild className="font-black uppercase italic bg-primary text-black hover:scale-105 transition-all rounded-xl shadow-lg shadow-primary/20">
           <Link href="/dashboard/produtos/novo">
-            <Plus className="mr-2 h-4 w-4" />
-            Adicionar Série
+            <Plus className="mr-2 h-5 w-5" />
+            Vincular Nova Série
           </Link>
         </Button>
       </div>
 
-      <ProdutosList produtos={produtos} />
+      <div className="grid gap-6">
+        {/* O componente ProdutosList agora recebe apenas os SEUS vínculos agrupados */}
+        <ProdutosList produtos={produtos} />
+      </div>
     </div>
   )
 }

@@ -4,47 +4,49 @@ import { sql } from "@/lib/db"
 import { VendaForm } from "@/components/dashboard/vendas/venda-form"
 import { redirect } from "next/navigation"
 import { TabelaGlobal } from "@/components/dashboard/produtos/tabela-global"
+import { Suspense } from "react"
+import { Layers3, BookOpen, Loader2 } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
 
 export default async function NovaVendaPage(props: {
   searchParams: Promise<{ produto_id?: string }>
 }) {
   const session = await getServerSession(authOptions)
   const userId = session?.user?.id
-  const searchParams = await props.searchParams
-  const produto_id = searchParams.produto_id
+  const { produto_id } = await props.searchParams
 
-  if (!userId) {
-    redirect("/login")
-  }
+  if (!userId) redirect("/login")
 
-  // --- LÓGICA DE AUTO-VÍNCULO (O PULO DO GATO) ---
-  if (produto_id) {
-    // 1. Verifica se o vínculo já existe
+  // --- FUNÇÃO DE VALIDAÇÃO DE UUID (Blindagem Total) ---
+  const isValidUuid = (id: any): id is string => {
+    if (!id || typeof id !== 'string' || id === "undefined" || id === "null") return false;
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    return uuidRegex.test(id);
+  };
+
+  // --- LÓGICA DE AUTO-VÍNCULO ---
+  // Só executa se o produto_id for um UUID real
+  if (isValidUuid(produto_id)) {
     const checkRes = await sql.query(
       "SELECT id FROM user_series WHERE user_id = $1 AND produto_id = $2",
       [userId, produto_id]
     )
 
-    // 2. Se não existe, cria automaticamente para a série aparecer no formulário
     if (checkRes.rows.length === 0) {
-      // Busca o primeiro grupo do usuário para não deixar o campo vazio
       const grupoRes = await sql.query(
         "SELECT id FROM grupos WHERE user_id = $1 LIMIT 1",
         [userId]
       )
       
       const grupoPadrao = grupoRes.rows[0]?.id
-
-      // Se o usuário não tiver nem grupo, redirecionamos para ele criar um primeiro
-      if (!grupoPadrao) {
-        redirect("/dashboard/grupos?error=create_group_first")
+      
+      if (grupoPadrao) {
+        await sql.query(`
+          INSERT INTO user_series (user_id, produto_id, grupo_id, preco, ativo)
+          VALUES ($1, $2, $3, $4, true)
+          ON CONFLICT (user_id, produto_id, grupo_id) DO NOTHING
+        `, [userId, produto_id, grupoPadrao, 1.00]) 
       }
-
-      await sql.query(`
-        INSERT INTO user_series (user_id, produto_id, grupo_id, preco, ativo)
-        VALUES ($1, $2, $3, $4, true)
-        ON CONFLICT (user_id, produto_id) DO NOTHING
-      `, [userId, produto_id, grupoPadrao, 10.00]) // Preço padrão sugerido
     }
   }
 
@@ -53,11 +55,12 @@ export default async function NovaVendaPage(props: {
     sql.query('SELECT id, nome FROM grupos WHERE user_id = $1 ORDER BY nome', [userId]),
     sql.query(`
       SELECT 
-        p.id, 
+        us.id, 
         p.nome, 
         p.imagem_url, 
         us.preco, 
-        us.grupo_id
+        us.grupo_id,
+        p.plataforma
       FROM produtos p
       INNER JOIN user_series us ON p.id = us.produto_id
       WHERE us.user_id = $1 AND us.ativo = true
@@ -68,43 +71,38 @@ export default async function NovaVendaPage(props: {
   const grupos = gruposRes.rows
   const produtos = produtosRes.rows
 
-  // Se após o auto-vínculo ele ainda não tiver produtos ativos, manda configurar
-  if (produtos.length === 0) {
+  // Redireciona apenas se não houver produtos ativos e não houver tentativa de vínculo válida
+  if (produtos.length === 0 && !isValidUuid(produto_id)) {
     redirect("/dashboard/produtos")
   }
 
-return (
-    <div className="container mx-auto p-4 md:p-8">
-      {/* HEADER */}
-      <div className="flex flex-col gap-1 mb-8">
-        <h1 className="text-4xl font-black uppercase tracking-tighter">
-          Finalizar Registro
-        </h1>
-        <p className="text-muted-foreground font-bold text-[10px] uppercase tracking-widest opacity-60">
-          Confirme os detalhes da venda abaixo
-        </p>
+  return (
+    <div className="container mx-auto p-4 md:p-8 lg:p-12">
+      {/* ... (Restante do JSX do Header e Grid igual ao anterior) ... */}
+      <div className="flex flex-col gap-2 mb-10">
+        <div className="flex items-center gap-3">
+            <div className="bg-primary/10 p-2 rounded-xl">
+                <Layers3 className="text-primary h-6 w-6 animate-pulse" />
+            </div>
+            <h1 className="text-4xl font-black uppercase tracking-tighter text-white italic">
+              Finalizar <span className="text-primary">Registro</span>
+            </h1>
+        </div>
       </div>
 
-      {/* GRID RESPONSIVO: 1 coluna no mobile, 2 colunas em telas XL (notebooks) */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 items-start">
-        
-        {/* Coluna 1: Formulário de Venda */}
-        <div className="w-full max-w-2xl mx-auto xl:mx-0 order-1">
-          <VendaForm 
-            grupos={grupos} 
-            produtos={produtos} 
-            initialProdutoId={produto_id} 
-          />
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-12 items-start">
+        <div className="xl:col-span-7 w-full order-1">
+          <Suspense fallback={<Loader2 className="animate-spin text-primary" />}>
+            <VendaForm 
+              grupos={grupos} 
+              produtos={produtos} 
+              initialProdutoId={isValidUuid(produto_id) ? produto_id : undefined} 
+            />
+          </Suspense>
         </div>
-
-        {/* Coluna 2: Tabela de Referência */}
-        <div className="w-full space-y-6 order-2">
-          {/* Dica: Você pode envolver a TabelaGlobal em um Card para combinar com o Form */}
-          <div className="bg-card rounded-xl border-2 shadow-sm overflow-hidden text-card-foreground">
-             <TabelaGlobal />
-          </div>
+        <div className="xl:col-span-5 w-full order-2 hidden xl:block">
+            <TabelaGlobal />
         </div>
-
       </div>
     </div>
   )
