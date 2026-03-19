@@ -22,7 +22,6 @@ export async function GET(request: Request) {
             SELECT 
                 p.id as produto_id,
                 p.nome,
-                -- CORREÇÃO AQUI: O banco tem 'imagem_url', o frontend quer 'capa_url'
                 p.imagem_url as capa_url, 
                 COUNT(v.id)::int as total_caps_vendidos,
                 COUNT(v.id)::int as total_registros,

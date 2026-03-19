@@ -18,7 +18,7 @@ export async function POST(request: Request) {
 
         for (const url of links) {
             try {
-                // 2. Tenta encontrar o produto pelo link no banco
+                // 2. Busca inicial por LINK_SERIE
                 let productRes = await sql.query(
                     `SELECT id, nome, imagem_url, plataforma FROM produtos WHERE link_serie = $1`, 
                     [url]
@@ -26,29 +26,37 @@ export async function POST(request: Request) {
 
                 let produto = productRes.rows[0];
 
-                // 3. Se não existe, usa o Scraper e já cadastra no banco
+                // 3. Se não achou pelo link, roda o scraper
                 if (!produto) {
                     const metadata = await resolveMetadata(url);
+                    
                     if (metadata?.nome) {
-                        const insertRes = await sql.query(`
+                        const nomeLimpo = metadata.nome.trim();
+
+                        // 4. UPSERT: Insere ou, se o NOME já existir, atualiza o link e recupera o registro
+                        // Isso resolve o erro "duplicate key value violates unique constraint"
+                        const upsertRes = await sql.query(`
                             INSERT INTO produtos (nome, descricao, imagem_url, link_serie, plataforma, updated_at)
                             VALUES ($1, $2, $3, $4, $5, NOW())
+                            ON CONFLICT (nome) 
+                            DO UPDATE SET 
+                                link_serie = EXCLUDED.link_serie,
+                                updated_at = NOW()
                             RETURNING id, nome, imagem_url, plataforma
                         `, [
-                            metadata.nome, 
+                            nomeLimpo, 
                             metadata.descricao || "", 
                             metadata.imagem_url, 
                             url, 
                             metadata.plataforma || 'auto'
                         ]);
-                        produto = insertRes.rows[0];
+                        
+                        produto = upsertRes.rows[0];
                     }
                 }
 
                 if (produto) {
-                    // 4. LÓGICA DE PREÇO E GRUPO: 
-                    // Busca a última venda desse produto feita por esse usuário 
-                    // para sugerir o preço e o grupo automaticamente.
+                    // 5. LÓGICA DE PREÇO E GRUPO (Sugestão automática)
                     const lastSaleRes = await sql.query(`
                         SELECT preco_unitario, grupo_id
                         FROM vendas 
@@ -63,15 +71,13 @@ export async function POST(request: Request) {
                         nome: produto.nome,
                         imagem_url: produto.imagem_url,
                         plataforma: produto.plataforma,
-                        // Sugere o último preço ou 0.00
                         valor: lastSale?.preco_unitario || 0.00,
-                        // Sugere o último grupo usado para essa obra ou vazio
                         grupo_id: lastSale?.grupo_id || "" 
                     });
                 }
             } catch (err: any) {
+                // Log detalhado para debugar falhas no scraper ou banco
                 console.error(`❌ Erro ao identificar link ${url}:`, err.message);
-                // Continua o loop para não travar os outros links válidos
             }
         }
 

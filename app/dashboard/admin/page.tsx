@@ -15,6 +15,8 @@ import {
   Activity, Zap, Calendar, Database, LayoutDashboard,
   GanttChartSquare, Edit3 
 } from "lucide-react"
+import { KakaoDownloader } from "@/components/dashboard/admin/downkakaobot"
+import { LezhinDownloader } from "@/components/dashboard/admin/LezhinDownloader"
 
 export const dynamic = "force-dynamic";
 
@@ -88,7 +90,7 @@ export default async function AdminPage() {
 
         {/* NAVEGAÇÃO POR ABAS */}
         <Tabs defaultValue="overview" className="space-y-8">
-          <TabsList className="bg-zinc-950 border border-white/10 p-1 h-auto grid grid-cols-2 md:grid-cols-6 lg:w-fit gap-1">
+          <TabsList className="bg-zinc-950 border border-white/10 p-1 h-auto grid grid-cols-2 md:grid-cols-7 lg:w-fit gap-1">
             <TabsTrigger value="overview" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-black uppercase text-[10px] py-2">
               <LayoutDashboard className="h-3.5 w-3.5 mr-2" /> Visão Geral
             </TabsTrigger>
@@ -107,6 +109,9 @@ export default async function AdminPage() {
             <TabsTrigger value="infrastructure" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-black uppercase text-[10px] py-2">
               <Zap className="h-3.5 w-3.5 mr-2" /> Ingestão
             </TabsTrigger>
+            <TabsTrigger value="kakao-bot" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-black uppercase text-[10px] py-2">
+              <Zap className="h-3.5 w-3.5 mr-2" /> kakao-bot
+            </TabsTrigger>            
           </TabsList>
 
           {/* ABA 1: OVERVIEW */}
@@ -216,6 +221,15 @@ export default async function AdminPage() {
                 </CardContent>
               </Card>
             </div>
+          </TabsContent>
+
+          <TabsContent value="kakao-bot">
+
+            <KakaoDownloader/>
+            <LezhinDownloader/>
+
+
+
           </TabsContent>
         </Tabs>
       </div>

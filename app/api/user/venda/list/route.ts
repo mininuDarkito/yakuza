@@ -7,28 +7,38 @@ export async function GET(request: Request) {
     try {
         const session = await getServerSession(authOptions);
         const { searchParams } = new URL(request.url);
+        
         const userId = searchParams.get("user_id");
+        const mesStr = searchParams.get("mes");
+        const anoStr = searchParams.get("ano");
 
-        // 1. Validação de Segurança
-        if (!session || (session.user.role !== 'admin' && session.user.id !== userId)) {
-            return NextResponse.json({ error: "403 - Não autorizado" }, { status: 403 });
+        // 1. Validação de Segurança e Parâmetros
+        if (!session) {
+            return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
         }
 
-        const mes = searchParams.get("mes");
-        const ano = searchParams.get("ano");
-
-        if (!mes || !ano || !userId) {
+        if (!userId || !mesStr || !anoStr) {
             return NextResponse.json({ error: "Parâmetros insuficientes" }, { status: 400 });
         }
 
-        // 2. Query SQL (Mantemos a query achatada para performance)
-const query = `
+        // Bloqueia se não for Admin e tentar ver dados de outro ID
+        if (session.user.role !== 'admin' && session.user.id !== userId) {
+            return NextResponse.json({ error: "403 - Não autorizado" }, { status: 403 });
+        }
+
+        // Conversão explícita para garantir compatibilidade com EXTRACT do Postgres
+        const mes = parseInt(mesStr);
+        const ano = parseInt(anoStr);
+
+        // 2. Query SQL Otimizada
+        // Ajustado: p.plataforma (origem correta) e grupos (nome da tabela no plural)
+        const query = `
             SELECT 
                 v.id,
                 v.quantidade,
                 v.preco_total,
                 v.data_venda,
-                p.plataforma,        -- Mudado de v. para p. pois está no Schema de Produto
+                p.plataforma,
                 v.lock_user,
                 v.lock_admin,
                 p.id as produto_id,
@@ -47,7 +57,7 @@ const query = `
 
         const res = await sql.query(query, [userId, mes, ano]);
 
-        // 3. MAPEAMENTO (Transformando para o formato aninhado da Interface)
+        // 3. MAPEAMENTO (Ponte para a Interface do Componente)
         const vendasFormatadas = res.rows.map(row => ({
             id: row.id,
             quantidade: row.quantidade,
@@ -70,10 +80,13 @@ const query = `
             }
         }));
 
+        // 4. Retorno Limpo
         return NextResponse.json(vendasFormatadas);
 
     } catch (error: any) {
         console.error("❌ Erro ao listar vendas detalhadas:", error.message);
+        
+        // Retorno de erro com detalhes para facilitar o debug no navegador
         return NextResponse.json({ 
             error: "Erro interno ao buscar extrato",
             details: error.message 
