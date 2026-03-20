@@ -3,44 +3,80 @@ import { sql } from "@/lib/db";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
+/**
+ * API: Listagem de Grupos Yakuza Raws
+ * Filtra grupos baseados em vínculos (UserSeries) ou hierarquia administrativa.
+ */
 export async function GET(request: Request) {
     try {
         const session = await getServerSession(authOptions);
-        if (!session) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+        
+        // 1. Verificação de Autenticação
+        if (!session || !session.user) {
+            return NextResponse.json({ error: "Sessão expirada ou não autenticado" }, { status: 401 });
+        }
 
         const { searchParams } = new URL(request.url);
         const userId = searchParams.get('userId');
 
-        // SEGURANÇA HÍBRIDA:
+        // Normalização do ID (Trata strings 'null' ou 'undefined' vindas do front-end)
+        const targetId = (userId === "undefined" || userId === "null" || !userId) ? null : userId;
+        
         const isAdmin = session.user?.role === 'admin';
-        const isOwner = session.user?.id === userId;
+        const isOwner = session.user?.id === targetId;
 
-        // Se não for admin e tentar ver grupos de outro, ou se não houver ID e não for admin
-        if (!isAdmin && (!userId || !isOwner)) {
-            return NextResponse.json({ error: "Acesso não autorizado." }, { status: 403 });
+        // 2. Regras de Segurança Yakuza
+        // Se um usuário comum tenta passar o ID de outra pessoa na URL, bloqueamos.
+        if (!isAdmin && targetId && !isOwner) {
+            return NextResponse.json({ error: "Acesso negado: Você não pode listar grupos de outro membro." }, { status: 403 });
         }
 
         let query = "";
         let values: any[] = [];
 
-        if (userId && userId !== "undefined" && userId !== "null") {
+        // 3. Lógica de Consulta Híbrida
+        if (targetId) {
+            /** * LISTAGEM POR VÍNCULO (Para Vendedores/Staff)
+             * Busca apenas grupos onde o usuário tem obras vinculadas ativas.
+             * Isso evita que o formulário de venda mostre grupos onde ele não trabalha.
+             */
             query = `
-                SELECT id, nome, user_id
-                FROM grupos
-                WHERE user_id = $1
+                SELECT DISTINCT 
+                    g.id, 
+                    g.nome, 
+                    g.channel_id,
+                    g.user_id as owner_id
+                FROM grupos g
+                INNER JOIN user_series us ON us.grupo_id = g.id
+                WHERE us.user_id = $1 AND us.ativo = true
+                ORDER BY g.nome ASC
+            `;
+            values = [targetId];
+        } else {
+            /** * LISTAGEM GLOBAL (Apenas para Admins)
+             * Permite ver todos os canais registrados na Yakuza Raws para gestão.
+             */
+            if (!isAdmin) {
+                return NextResponse.json({ error: "Apenas administradores podem ver a listagem global." }, { status: 403 });
+            }
+
+            query = `
+                SELECT id, nome, channel_id, user_id as owner_id 
+                FROM grupos 
                 ORDER BY nome ASC
             `;
-            values = [userId];
-        } else {
-            // Apenas Admin chega aqui (listagem global de grupos)
-            query = `SELECT id, nome, user_id FROM grupos ORDER BY nome ASC`;
         }
 
         const res = await sql.query(query, values);
+
+        // 4. Retorno formatado
         return NextResponse.json(res.rows);
 
     } catch (error: any) {
-        console.error("❌ Erro ao listar grupos:", error.message);
-        return NextResponse.json({ error: "Erro interno" }, { status: 500 });
+        console.error("❌ [YAKUZA API ERROR]:", error.message);
+        return NextResponse.json(
+            { error: "Falha interna ao processar lista de grupos." }, 
+            { status: 500 }
+        );
     }
 }
