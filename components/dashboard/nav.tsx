@@ -22,7 +22,7 @@ import {
   LogOut,
   Menu,
   ShieldCheck,
-  Settings,
+  Settings, Book
 } from "lucide-react"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { useState, useEffect } from "react"
@@ -53,9 +53,11 @@ export function DashboardNav({ user }: NavProps) {
   const navItems = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { href: "/dashboard/grupos", label: "Grupos", icon: FolderOpen },
+    { href: "/dashboard/catalogo", label: "Catálogo", icon: Book },
     { href: "/dashboard/produtos", label: "Produtos", icon: Package },
     { href: "/dashboard/vendas", label: "Vendas", icon: ShoppingCart },
     { href: "/dashboard/exportar", label: "Exportar", icon: Download },
+    
 
   ]
 

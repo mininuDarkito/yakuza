@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { toast } from "sonner"
 import { useForm } from "react-hook-form"
@@ -8,13 +8,11 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Switch } from "@/components/ui/switch"
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -28,7 +26,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import Link from "next/link"
-import { ImagePlus, Loader2, Save, Globe, Lock, Layers } from "lucide-react"
+import { ImagePlus, Loader2, Globe, Lock, Layers, BookOpen } from "lucide-react"
 
 const formSchema = z.object({
   grupo_id: z.string().min(1, "Selecione um grupo global"),
@@ -43,10 +41,7 @@ const formSchema = z.object({
 
 type FormData = z.infer<typeof formSchema>
 
-interface Grupo {
-  id: string
-  nome: string
-}
+interface Grupo { id: string; nome: string }
 
 interface ProdutoFormProps {
   produto?: {
@@ -68,47 +63,31 @@ export function ProdutoForm({ produto, grupos }: ProdutoFormProps) {
   const searchParams = useSearchParams()
   const [isLoading, setIsLoading] = useState(false)
   
-  // Lógica para capturar dados da URL (se estivermos duplicando/copiando)
-  const queryNome = searchParams.get("nome")
-  const queryPlataforma = searchParams.get("plataforma")
-  const queryImagem = searchParams.get("imagem")
-  const queryLink = searchParams.get("link")
+  // Lógica Yakuza Raws: Captura dados do "Explorar Catálogo"
+  const predefProdutoId = searchParams.get("produtoId")
+  const predefNome = searchParams.get("nome")
+  const predefPlat = searchParams.get("plataforma")
+  const predefImagem = searchParams.get("imagem")
+  const predefLink = searchParams.get("link")
 
-  const [previewImage, setPreviewImage] = useState<string | null>(produto?.imagem_url || queryImagem || null)
+  const [previewImage, setPreviewImage] = useState<string | null>(produto?.imagem_url || predefImagem || null)
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       grupo_id: produto?.grupo_id || "",
-      nome: produto?.nome || queryNome || "",
+      nome: produto?.nome || predefNome || "",
       descricao: produto?.descricao || "",
       preco: produto?.preco ? String(produto.preco).replace(".", ",") : "",
       ativo: produto?.ativo ?? true,
-      imagem_url: produto?.imagem_url || queryImagem || "",
-      link_serie: produto?.link_serie || queryLink || "",
-      plataforma: produto?.plataforma || queryPlataforma || "",
+      imagem_url: produto?.imagem_url || predefImagem || "",
+      link_serie: produto?.link_serie || predefLink || "",
+      plataforma: produto?.plataforma || predefPlat || "",
     },
   })
 
-  // Sincroniza o preview se a URL mudar (ou carregar)
-  useEffect(() => {
-    if (queryImagem && !produto?.id) {
-        setPreviewImage(queryImagem)
-    }
-  }, [queryImagem, produto?.id])
-
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        const base64String = reader.result as string
-        setPreviewImage(base64String)
-        form.setValue("imagem_url", base64String)
-      }
-      reader.readAsDataURL(file)
-    }
-  }
+  // Modo "Apenas Vínculo" - Se viemos do catálogo global, não deixamos o usuário comum mudar dados globais
+  const isSelfService = !!predefProdutoId && !produto?.id
 
   const onSubmit = async (data: FormData) => {
     setIsLoading(true)
@@ -118,53 +97,43 @@ export function ProdutoForm({ produto, grupos }: ProdutoFormProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...data,
-          id: produto?.id, 
+          id: produto?.id, // ID da user_series se for edição
           preco: parseFloat(data.preco.replace(",", ".")),
         }),
       })
 
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || "Falha ao processar requisição")
-      }
+      if (!response.ok) throw new Error("Falha ao sincronizar obra")
 
-      toast.success(produto?.id 
-        ? "Vínculo atualizado com sucesso!" 
-        : "Série vinculada ao grupo com sucesso!"
-      )
-      
+      toast.success(produto?.id ? "Configuração atualizada!" : "Obra vinculada ao seu perfil!")
       router.refresh()
       router.push("/dashboard/produtos")
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Erro ao salvar")
+    } catch (error: any) {
+      toast.error(error.message)
     } finally {
       setIsLoading(false)
     }
   }
 
   return (
-    <Card className="max-w-3xl border-2 border-zinc-800 bg-zinc-950 shadow-2xl overflow-hidden rounded-[2rem]">
-      <CardHeader className="bg-white/5 border-b border-white/5 p-8">
+    <Card className="max-w-3xl border-2 border-border bg-card shadow-2xl overflow-hidden rounded-[2.5rem]">
+      <CardHeader className="bg-muted/30 border-b border-border p-8">
         <div className="flex items-center justify-between">
             <div>
-                <CardTitle className="text-3xl font-black uppercase italic tracking-tighter text-white">
-                {produto?.id ? `CONFIGURAR VÍNCULO` : "NOVO VÍNCULO"}
+                <CardTitle className="text-3xl font-black uppercase italic tracking-tighter text-foreground">
+                {produto?.id ? `EDITAR OFERTA` : isSelfService ? "VINCULAR OBRA" : "NOVA SÉRIE"}
                 </CardTitle>
-                <CardDescription className="font-bold uppercase text-[10px] text-zinc-500 tracking-widest mt-1">
-                {produto?.id 
-                  ? `Editando oferta para: ${produto.nome}`
-                  : "Associe uma obra a um grupo e defina o preço de venda."
-                }
+                <CardDescription className="font-bold uppercase text-[10px] text-muted-foreground tracking-widest mt-1">
+                {isSelfService ? `Importando do catálogo: ${predefNome}` : "Defina o preço e o canal de venda para esta obra."}
                 </CardDescription>
             </div>
-            <div className="bg-primary/10 p-3 rounded-2xl">
-                <Layers size={24} className="text-primary animate-pulse" />
+            <div className="bg-primary/10 p-4 rounded-3xl">
+                <Layers size={28} className="text-primary" />
             </div>
         </div>
       </CardHeader>
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8 p-8">
+        <form onSubmit={form.handleSubmit(onSubmit)} className="p-8 space-y-8">
           <CardContent className="space-y-8 p-0">
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -173,19 +142,16 @@ export function ProdutoForm({ produto, grupos }: ProdutoFormProps) {
                 name="nome"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-[11px] font-black uppercase italic text-zinc-400 flex items-center gap-2">
-                        <Globe size={12} /> Nome da Obra
+                    <FormLabel className="text-[11px] font-black uppercase italic text-muted-foreground flex items-center gap-2">
+                        <BookOpen size={12} /> Título da Obra
                     </FormLabel>
                     <FormControl>
                       <Input 
-                        placeholder="Ex: Solo Leveling" 
                         {...field} 
-                        className="h-12 bg-white/5 border-white/10 font-bold italic text-white focus:border-primary transition-all uppercase" 
+                        readOnly={isSelfService}
+                        className="h-12 bg-muted/20 border-border font-bold italic text-foreground focus:border-primary transition-all uppercase rounded-xl" 
                       />
                     </FormControl>
-                    <FormDescription className="text-[9px] uppercase font-bold italic text-zinc-500">
-                      Se o nome já existir, ele será vinculado ao novo grupo selecionado.
-                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -196,24 +162,21 @@ export function ProdutoForm({ produto, grupos }: ProdutoFormProps) {
                 name="grupo_id"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-[11px] font-black uppercase italic text-zinc-400">Grupo de Destino (Discord)</FormLabel>
+                    <FormLabel className="text-[11px] font-black uppercase italic text-muted-foreground">Canal de Destino</FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value || undefined}>
                       <FormControl>
-                        <SelectTrigger className="h-12 bg-white/5 border-white/10 font-bold italic uppercase text-white">
-                          <SelectValue placeholder="Selecione o Grupo" />
+                        <SelectTrigger className="h-12 bg-muted/20 border-border font-bold italic uppercase text-foreground rounded-xl">
+                          <SelectValue placeholder="Escolha o Grupo" />
                         </SelectTrigger>
                       </FormControl>
-                      <SelectContent className="bg-zinc-900 border-white/10">
+                      <SelectContent className="bg-popover border-border">
                         {grupos.map((grupo) => (
-                          <SelectItem key={grupo.id} value={grupo.id} className="font-bold uppercase italic text-white focus:bg-primary focus:text-black">
+                          <SelectItem key={grupo.id} value={grupo.id} className="font-bold uppercase italic focus:bg-primary focus:text-primary-foreground">
                             {grupo.nome}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
-                    <FormDescription className="text-[9px] uppercase font-bold italic text-zinc-500">
-                      Escolha em qual canal do bot esta obra será vendida.
-                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -221,44 +184,45 @@ export function ProdutoForm({ produto, grupos }: ProdutoFormProps) {
             </div>
 
             <div className="space-y-4">
-              <FormLabel className="text-[11px] font-black uppercase italic text-zinc-400">Identidade Visual (Global)</FormLabel>
-              <div className="flex flex-col md:flex-row items-start md:items-center gap-8 p-6 rounded-[2rem] bg-white/[0.02] border border-white/5">
-                <div className="relative flex h-52 w-36 shrink-0 items-center justify-center overflow-hidden rounded-2xl border-2 border-white/10 bg-black shadow-2xl">
+              <div className="flex flex-col md:flex-row items-start md:items-center gap-8 p-6 rounded-[2rem] bg-muted/10 border border-border">
+                <div className="relative flex h-52 w-36 shrink-0 items-center justify-center overflow-hidden rounded-2xl border-2 border-border bg-muted shadow-2xl">
                   {previewImage ? (
                     <img src={previewImage} alt="Preview" className="h-full w-full object-cover" />
                   ) : (
-                    <ImagePlus className="h-12 w-12 text-white/10" />
+                    <ImagePlus className="h-12 w-12 text-muted-foreground/30" />
                   )}
                 </div>
                 <div className="flex flex-col gap-4 w-full">
-                  <div className="space-y-2">
-                    <p className="text-[10px] font-black uppercase text-zinc-500 tracking-widest">Upload de Capa</p>
-                    <Input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleImageChange}
-                        className="bg-white/5 border-white/10 cursor-pointer font-bold text-xs h-10"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <p className="text-[10px] font-black uppercase text-zinc-500 tracking-widest">Link da Imagem</p>
-                    <FormField
+                   <FormField
                         control={form.control}
                         name="imagem_url"
                         render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Link da Imagem (Capa)</FormLabel>
                             <Input 
-                                placeholder="https://..." 
                                 {...field} 
+                                readOnly={isSelfService}
                                 value={field.value || ""} 
-                                onChange={(e) => {
-                                    field.onChange(e.target.value)
-                                    setPreviewImage(e.target.value)
-                                }}
-                                className="h-10 bg-white/5 border-white/10 font-medium text-xs italic" 
+                                className="h-11 bg-muted/20 border-border font-medium text-xs italic rounded-lg" 
                             />
+                          </FormItem>
                         )}
                     />
-                  </div>
+                   <FormField
+                        control={form.control}
+                        name="plataforma"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Origem</FormLabel>
+                            <Input 
+                                {...field} 
+                                readOnly={isSelfService}
+                                value={field.value || ""} 
+                                className="h-11 bg-muted/20 border-border font-bold text-xs italic uppercase rounded-lg" 
+                            />
+                          </FormItem>
+                        )}
+                    />
                 </div>
               </div>
             </div>
@@ -266,28 +230,14 @@ export function ProdutoForm({ produto, grupos }: ProdutoFormProps) {
             <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
               <FormField
                 control={form.control}
-                name="plataforma"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-[11px] font-black uppercase italic text-zinc-400">Plataforma Origem</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Ex: Kakao" {...field} value={field.value || ""} className="h-12 bg-white/5 border-white/10 font-bold italic text-white uppercase" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
                 name="preco"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-[11px] font-black uppercase italic text-primary">Preço (R$) Neste Grupo</FormLabel>
+                    <FormLabel className="text-[11px] font-black uppercase italic text-primary">Preço Unitário (R$)</FormLabel>
                     <FormControl>
                       <Input
                         placeholder="0,00"
-                        className="h-12 bg-white/5 border-primary/20 border-2 font-black text-xl text-emerald-400 italic"
+                        className="h-14 bg-primary/5 border-primary/20 border-2 font-black text-2xl text-primary italic rounded-2xl"
                         {...field}
                         onChange={(e) => {
                           const value = e.target.value.replace(/[^\d,]/g, "")
@@ -299,6 +249,21 @@ export function ProdutoForm({ produto, grupos }: ProdutoFormProps) {
                   </FormItem>
                 )}
               />
+
+              <FormField
+                control={form.control}
+                name="ativo"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-2xl border-2 border-border p-4 bg-muted/10">
+                    <FormLabel className="text-xs font-black uppercase italic tracking-tighter flex items-center gap-2">
+                        <Lock size={14} className="text-muted-foreground" /> Liberado para Vendas
+                    </FormLabel>
+                    <FormControl>
+                      <Switch checked={field.value} onCheckedChange={field.onChange} />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
             </div>
 
             <FormField
@@ -306,58 +271,22 @@ export function ProdutoForm({ produto, grupos }: ProdutoFormProps) {
               name="link_serie"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-[11px] font-black uppercase italic text-zinc-400">URL da Obra</FormLabel>
+                  <FormLabel className="text-[11px] font-black uppercase italic text-muted-foreground">Link da Obra (URL)</FormLabel>
                   <FormControl>
-                    <Input placeholder="https://..." {...field} value={field.value || ""} className="h-12 bg-white/5 border-white/10 font-medium text-zinc-300 italic" />
+                    <Input {...field} readOnly={isSelfService} className="h-12 bg-muted/20 border-border font-medium italic rounded-xl" />
                   </FormControl>
                   <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="descricao"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-[11px] font-black uppercase italic text-zinc-400">Sinopse</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      placeholder="..."
-                      className="min-h-[100px] bg-white/5 border-white/10 font-medium italic text-zinc-400 resize-none rounded-2xl"
-                      {...field}
-                      value={field.value || ""}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="ativo"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-center justify-between rounded-[2rem] border-2 border-white/5 p-6 bg-white/[0.02]">
-                  <div className="space-y-0.5">
-                    <FormLabel className="text-sm font-black uppercase italic tracking-tighter text-white flex items-center gap-2">
-                        <Lock size={14} className="text-zinc-500" /> Ativo para Venda
-                    </FormLabel>
-                  </div>
-                  <FormControl>
-                    <Switch checked={field.value} onCheckedChange={field.onChange} />
-                  </FormControl>
                 </FormItem>
               )}
             />
           </CardContent>
 
-          <CardFooter className="flex justify-between p-0 pt-8 border-t border-white/5">
-            <Button variant="ghost" asChild className="font-black uppercase italic text-zinc-500">
-              <Link href="/dashboard/produtos">Cancelar</Link>
+          <CardFooter className="flex justify-between p-0 pt-8 border-t border-border">
+            <Button variant="ghost" asChild className="font-black uppercase italic text-muted-foreground hover:bg-muted/50 rounded-xl">
+              <Link href="/dashboard/produtos">Voltar</Link>
             </Button>
-            <Button type="submit" disabled={isLoading} className="font-black uppercase italic px-10 h-12 bg-primary text-black rounded-2xl shadow-xl hover:scale-105 transition-all">
-              {isLoading ? <Loader2 className="animate-spin mr-2" /> : "Salvar Vínculo"}
+            <Button type="submit" disabled={isLoading} className="font-black uppercase italic px-12 h-14 bg-primary text-primary-foreground rounded-[1.5rem] shadow-xl hover:scale-105 transition-all">
+              {isLoading ? <Loader2 className="animate-spin mr-2" /> : "Salvar Configuração"}
             </Button>
           </CardFooter>
         </form>
