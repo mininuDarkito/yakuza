@@ -25,7 +25,8 @@ export async function POST(request: Request) {
     // --- CÉREBRO: PROCESSAMENTO DE CAPÍTULOS ---
     const parseCapitulos = (input: string): number[] => {
       const nums = new Set<number>();
-      const parts = input.split(/[ ,;]+/);
+      // Filtra partes vazias para evitar NaN (ex: "1, , 2")
+      const parts = input.split(/[ ,;]+/).filter(p => p.trim() !== "");
 
       parts.forEach(part => {
         if (part.includes("-")) {
@@ -51,7 +52,7 @@ export async function POST(request: Request) {
 
     // --- REGISTRO EM MASSA (Mapeado para o seu Prisma Schema) ---
     // quantidade = número do capítulo
-    // preco_total = quantidade * preco_unitario (neste caso individual é o mesmo valor)
+    // preco_total = quantidade (1) * preco_unitario
     const query = `
       INSERT INTO vendas (
         user_id, 
@@ -66,8 +67,8 @@ export async function POST(request: Request) {
       SELECT 
         $1, $2, $3, 
         unnest($4::int[]), 
-        $5, $5, -- preco_total aqui é o mesmo que unitário pois cada linha é 1 cap
-        $6, $7
+        $5, $5, 
+        $6, $7::timestamptz
       ON CONFLICT (user_id, produto_id, grupo_id, quantidade) 
       DO UPDATE SET 
         preco_unitario = EXCLUDED.preco_unitario,
@@ -77,6 +78,7 @@ export async function POST(request: Request) {
       RETURNING id
     `;
 
+    // Garantimos que o preço seja passado com precisão e a data formatada
     const res = await sql.query(query, [
       userId, 
       data.obra_id, 
@@ -84,10 +86,10 @@ export async function POST(request: Request) {
       listaCaps, 
       data.preco_unitario, 
       data.obs || null,
-      data.data_venda
+      new Date(data.data_venda).toISOString() // Força formato ISO estável
     ]);
 
-    // Log de Auditoria
+    // Log de Auditoria para o Admin
     await sql.query(`
       INSERT INTO activity_logs (user_id, action, entity_type, details)
       VALUES ($1, 'batch_venda_registro', 'venda', $2)
