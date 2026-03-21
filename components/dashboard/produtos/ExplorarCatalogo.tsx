@@ -37,7 +37,7 @@ export function ExplorarCatalogo() {
     // Estados de Paginação
     const [page, setPage] = useState(1)
     const [totalItems, setTotalItems] = useState(0)
-    const itemsPerPage = 18 // 3 linhas x 6 colunas
+    const itemsPerPage = 18 
 
     const router = useRouter()
 
@@ -55,12 +55,11 @@ export function ExplorarCatalogo() {
         setLoading(true)
         try {
             const platQuery = plataforma !== "TODAS" ? `&plataforma=${encodeURIComponent(plataforma)}` : ""
-            // Enviamos a página atual para a API
             const res = await fetch(`/api/user/catalogo?search=${encodeURIComponent(search)}${platQuery}&page=${page}&limit=${itemsPerPage}`)
             const data = await res.json()
             
-            // Esperamos que a API retorne { items: [], total: number }
-            setObras(data.items || [])
+            // Suporta retorno { items: [], total: x } ou apenas array direto
+            setObras(data.items || data)
             setTotalItems(data.total || 0)
         } catch (error) {
             toast.error("Erro ao carregar catálogo global.")
@@ -89,7 +88,9 @@ export function ExplorarCatalogo() {
         <div className="space-y-8">
             {/* HEADER E FILTROS */}
             <div className="flex flex-col gap-6">
-                <h2 className="text-3xl font-black uppercase italic tracking-tighter text-foreground">Explorar Acervo</h2>
+                <h2 className="text-3xl font-black uppercase italic tracking-tighter text-foreground">
+                   Explorar <span className="text-primary">Acervo Global</span>
+                </h2>
                 
                 <div className="flex flex-col md:flex-row gap-4">
                     <div className="relative flex-1">
@@ -98,7 +99,7 @@ export function ExplorarCatalogo() {
                             placeholder="PROCURAR OBRA NO ACERVO DA YAKUZA..."
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
-                            className="pl-11 h-14 bg-muted/50 border-border font-bold italic uppercase rounded-xl"
+                            className="pl-11 h-14 bg-muted/50 border-border font-bold italic uppercase rounded-xl focus-visible:ring-primary"
                         />
                     </div>
 
@@ -106,16 +107,16 @@ export function ExplorarCatalogo() {
                         <DropdownMenuTrigger asChild>
                             <Button 
                                 variant="outline" 
-                                className="h-14 px-8 font-black uppercase italic border-2 border-primary/20 hover:border-primary transition-all rounded-xl min-w-[180px]"
+                                className="h-14 px-8 font-black uppercase italic border-2 border-primary/20 hover:border-primary transition-all rounded-xl min-w-[180px] bg-card text-foreground"
                             >
-                                {plataforma === "TODAS" ? "Plataforma" : plataforma}
+                                {plataforma === "TODAS" ? "Filtrar Plataforma" : plataforma}
                             </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent className="bg-popover border-border min-w-[200px] rounded-xl shadow-2xl">
-                            <DropdownMenuLabel className="font-black uppercase italic text-[10px] text-muted-foreground p-3">
-                                Filtrar por Origem
+                        <DropdownMenuContent className="bg-zinc-900 border-white/10 min-w-[200px] rounded-xl shadow-2xl">
+                            <DropdownMenuLabel className="font-black uppercase italic text-[10px] text-muted-foreground p-3 tracking-widest">
+                                ORIGEM DO ACERVO
                             </DropdownMenuLabel>
-                            <DropdownMenuSeparator />
+                            <DropdownMenuSeparator className="bg-white/5" />
                             <DropdownMenuItem
                                 onClick={() => setPlataforma("TODAS")}
                                 className="font-bold uppercase italic p-3 focus:bg-primary focus:text-primary-foreground cursor-pointer"
@@ -136,22 +137,23 @@ export function ExplorarCatalogo() {
                 </div>
             </div>
 
-            {/* GRID DE RESULTADOS (6 COLUNAS) */}
+            {/* GRID DE RESULTADOS */}
             {loading ? (
-                <div className="flex justify-center py-20">
+                <div className="flex flex-col items-center justify-center py-20 gap-4">
                     <Loader2 className="animate-spin text-primary h-12 w-12" />
+                    <p className="font-black italic uppercase text-xs text-muted-foreground animate-pulse">Sincronizando Banco...</p>
                 </div>
             ) : (
                 <>
                     {obras.length > 0 ? (
                         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
                             {obras.map((obra) => (
-                                <Card key={obra.id} className="group overflow-hidden border-border bg-card hover:border-primary/50 transition-all rounded-[1.5rem] flex flex-col">
+                                <Card key={obra.id} className="group overflow-hidden border-border bg-card hover:border-primary transition-all rounded-[1.5rem] flex flex-col shadow-lg border-2 border-transparent">
                                     <div className="relative aspect-[3/4] overflow-hidden bg-muted">
                                         {obra.imagem_url ? (
                                             <img 
                                                 src={obra.imagem_url} 
-                                                className="object-cover w-full h-full transition-transform group-hover:scale-110" 
+                                                className="object-cover w-full h-full transition-transform duration-500 group-hover:scale-110" 
                                                 alt={obra.nome} 
                                             />
                                         ) : (
@@ -160,25 +162,26 @@ export function ExplorarCatalogo() {
                                             </div>
                                         )}
                                         <div className="absolute top-2 right-2">
-                                            <Badge className="bg-background/80 backdrop-blur-md text-[9px] border-primary/20 uppercase font-black italic">
+                                            <Badge className="bg-black/80 backdrop-blur-md text-[9px] border-none uppercase font-black italic text-white px-2 py-0.5 rounded-lg">
                                                 {obra.plataforma}
                                             </Badge>
                                         </div>
                                     </div>
 
-                                    <CardContent className="p-4 flex-grow">
-                                        <h3 className="font-black text-[11px] uppercase italic leading-tight line-clamp-2 min-h-[2.2rem]">
+                                    <CardContent className="p-4 flex-grow bg-card">
+                                        <h3 className="font-black text-[11px] uppercase italic leading-tight line-clamp-2 min-h-[2.2rem] text-foreground group-hover:text-primary transition-colors">
                                             {obra.nome}
                                         </h3>
                                     </CardContent>
 
-                                    <CardFooter className="p-4 pt-0">
+                                    <CardFooter className="p-4 pt-0 bg-card">
                                         <Button
                                             asChild
-                                            className="w-full bg-primary text-primary-foreground font-black uppercase italic text-[9px] h-8 rounded-lg hover:scale-105 transition-transform"
+                                            className="w-full bg-primary text-primary-foreground font-black uppercase italic text-[9px] h-8 rounded-lg hover:scale-105 transition-all shadow-lg shadow-primary/10"
                                         >
-                                            <Link href={`/dashboard/produtos/novo?produtoId=${obra.id}&nome=${encodeURIComponent(obra.nome)}&plataforma=${encodeURIComponent(obra.plataforma || '')}&imagem=${encodeURIComponent(obra.imagem_url || '')}&link=${encodeURIComponent(obra.link_serie || '')}`}>
-                                                <PlusCircle className="mr-1.5 h-3.5 w-3.5" /> Vincular
+                                            {/* CORREÇÃO DO LINK: Passando apenas o produtoId para evitar erro 431 */}
+                                            <Link href={`/dashboard/produtos/novo?produtoId=${obra.id}`}>
+                                                <PlusCircle className="mr-1.5 h-3.5 w-3.5" /> Vincular Obra
                                             </Link>
                                         </Button>
                                     </CardFooter>
@@ -186,8 +189,8 @@ export function ExplorarCatalogo() {
                             ))}
                         </div>
                     ) : (
-                        <div className="text-center py-20 border-2 border-dashed border-border rounded-[2rem] bg-muted/5">
-                            <p className="text-muted-foreground font-bold italic uppercase tracking-widest text-[10px]">
+                        <div className="text-center py-20 border-2 border-dashed border-white/5 rounded-[3rem] bg-muted/5">
+                            <p className="text-muted-foreground font-black italic uppercase tracking-widest text-[10px]">
                                 Nenhuma obra encontrada nesta página.
                             </p>
                         </div>
@@ -198,24 +201,30 @@ export function ExplorarCatalogo() {
                         <div className="flex items-center justify-center gap-6 pt-10">
                             <Button
                                 variant="outline"
-                                onClick={() => setPage(p => Math.max(1, p - 1))}
+                                onClick={() => {
+                                    setPage(p => Math.max(1, p - 1));
+                                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                                }}
                                 disabled={page === 1}
-                                className="h-10 w-10 p-0 border-border bg-card rounded-xl hover:bg-primary/10 hover:text-primary disabled:opacity-30"
+                                className="h-10 w-10 p-0 border-border bg-card rounded-xl hover:bg-primary/10 hover:text-primary disabled:opacity-30 transition-all"
                             >
                                 <ChevronLeft className="h-5 w-5" />
                             </Button>
 
                             <div className="flex items-center gap-2 font-black italic uppercase text-xs tracking-tighter">
                                 <span className="text-primary">{page}</span>
-                                <span className="text-muted-foreground">/</span>
+                                <span className="text-muted-foreground opacity-30">/</span>
                                 <span className="text-muted-foreground">{totalPages}</span>
                             </div>
 
                             <Button
                                 variant="outline"
-                                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                                onClick={() => {
+                                    setPage(p => Math.min(totalPages, p + 1));
+                                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                                }}
                                 disabled={page === totalPages}
-                                className="h-10 w-10 p-0 border-border bg-card rounded-xl hover:bg-primary/10 hover:text-primary disabled:opacity-30"
+                                className="h-10 w-10 p-0 border-border bg-card rounded-xl hover:bg-primary/10 hover:text-primary disabled:opacity-30 transition-all"
                             >
                                 <ChevronRight className="h-5 w-5" />
                             </Button>
