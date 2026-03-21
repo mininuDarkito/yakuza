@@ -4,9 +4,8 @@ import { authOptions } from "@/lib/auth"
 import { sql } from "@/lib/db"
 import { z } from "zod"
 
-// Schema validando a estrutura de Grupos Globais
 const produtoSchema = z.object({
-  id: z.string().uuid().optional().nullable(), // ID opcional para edições
+  id: z.string().uuid().optional().nullable(), 
   nome: z.string().min(1, "Nome é obrigatório"),
   descricao: z.string().optional().nullable(),
   preco: z.number().nonnegative("Preço não pode ser negativo"),
@@ -21,16 +20,15 @@ export async function GET() {
   const session = await getServerSession(authOptions)
   const userId = session?.user?.id
 
-  if (!userId) {
-    return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
-  }
+  if (!userId) return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
 
   try {
-    // Retorna o Catálogo Global + O vínculo de preço do usuário logado
-    // Se o usuário for Admin, ele vê tudo. Se for editor, vê o que ele configurou.
+    // Retorna o Catálogo Global + Vínculos do Usuário
+    // Importante: p.id é o ID da OBRA, us.id é o ID do VÍNCULO (usado para DELETE/EDIT)
     const res = await sql.query(`
       SELECT 
-        p.id, 
+        us.id as vinculo_id,
+        p.id as produto_id, 
         p.nome, 
         p.plataforma, 
         p.imagem_url,
@@ -41,8 +39,9 @@ export async function GET() {
         g.nome as grupo_nome, 
         us.grupo_id
       FROM produtos p
-      LEFT JOIN user_series us ON p.id = us.produto_id AND us.user_id = $1
+      INNER JOIN user_series us ON p.id = us.produto_id
       LEFT JOIN grupos g ON us.grupo_id = g.id
+      WHERE us.user_id = $1
       ORDER BY p.nome ASC
     `, [userId])
 
@@ -53,62 +52,58 @@ export async function GET() {
   }
 }
 
-
-
 export async function DELETE(request: Request) {
   const session = await getServerSession(authOptions);
   const userId = session?.user?.id;
   const userRole = session?.user?.role;
 
-  if (!userId) {
-    return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
-  }
+  if (!userId) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
 
   try {
+    // Pegamos o ID do vínculo (user_series) da URL
     const { searchParams } = new URL(request.url);
-    const produtoId = searchParams.get("id");
+    const vinculoId = searchParams.get("id");
 
-    if (!produtoId) {
-      return NextResponse.json({ error: "ID do produto é obrigatório" }, { status: 400 });
-    }
+    if (!vinculoId) return NextResponse.json({ error: "ID do vínculo é obrigatório" }, { status: 400 });
 
-    // 1. SEMPRE remover o vínculo do usuário (user_series)
-    // Isso faz com que a série pare de aparecer no comando /venda daquele usuário/grupo
-    await sql.query(
-      "DELETE FROM user_series WHERE produto_id = $1 AND user_id = $2",
-      [produtoId, userId]
+    // 1. Buscamos o produto_id antes de deletar o vínculo (para auditoria e limpeza global)
+    const findVinculo = await sql.query(
+        "SELECT produto_id FROM user_series WHERE id = $1 AND user_id = $2",
+        [vinculoId, userId]
     );
 
-    // 2. TENTAR remover do Catálogo Global (Apenas se for ADMIN)
+    if (findVinculo.rowCount === 0) {
+        return NextResponse.json({ error: "Vínculo não encontrado ou não pertence a você" }, { status: 404 });
+    }
+
+    const produtoId = findVinculo.rows[0].produto_id;
+
+    // 2. Remove apenas o vínculo específico
+    await sql.query("DELETE FROM user_series WHERE id = $1", [vinculoId]);
+
+    // 3. Se for ADMIN, verifica se a obra ficou "orfã" no catálogo global
     if (userRole === 'admin') {
-      // Verificamos se existem vendas vinculadas a esse produto
-      const resVendas = await sql.query(
-        "SELECT COUNT(*)::int as count FROM vendas WHERE produto_id = $1",
-        [produtoId]
-      );
+      const checkUsage = await sql.query(`
+        SELECT 
+          (SELECT COUNT(*)::int FROM vendas WHERE produto_id = $1) as vendas_count,
+          (SELECT COUNT(*)::int FROM user_series WHERE produto_id = $1) as links_count
+      `, [produtoId]);
 
-      // Verificamos se outros usuários ainda têm essa série configurada
-      const resOutrosUsers = await sql.query(
-        "SELECT COUNT(*)::int as count FROM user_series WHERE produto_id = $1",
-        [produtoId]
-      );
+      const { vendas_count, links_count } = checkUsage.rows[0];
 
-      if (resVendas.rows[0].count === 0 && resOutrosUsers.rows[0].count === 0) {
-        // Se ninguém usa e não tem venda, podemos limpar o catálogo global
+      // Só apaga do catálogo global se ninguém mais usar e não houver histórico de vendas
+      if (vendas_count === 0 && links_count === 0) {
         await sql.query("DELETE FROM produtos WHERE id = $1", [produtoId]);
-      } else {
-        // Se tiver vendas, apenas desativamos globalmente (opcional)
-        // console.log("Produto mantido no catálogo por possuir histórico ou outros vínculos.");
       }
     }
 
-    // 3. Log de Atividade
+    // 4. Log
     await sql.query(`
       INSERT INTO activity_logs (user_id, action, entity_type, entity_id)
-      VALUES ($1, 'remove_product_link', 'produto', $2)
-    `, [userId, produtoId]);
+      VALUES ($1, 'remove_vinculo', 'user_series', $2)
+    `, [userId, vinculoId]);
 
-    return NextResponse.json({ success: true, message: "Vínculo removido com sucesso" });
+    return NextResponse.json({ success: true });
 
   } catch (error: any) {
     console.error("❌ Erro no DELETE produtos:", error);
@@ -119,22 +114,20 @@ export async function DELETE(request: Request) {
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions)
   const userId = session?.user?.id
-  const userRole = session?.user?.role
 
-  if (!userId) {
-    return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
-  }
+  if (!userId) return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
 
   try {
     const body = await request.json()
     
-    // Tratamento de tipos
-    const data = produtoSchema.parse({
-      ...body,
-      preco: typeof body.preco === 'string' ? parseFloat(body.preco.replace(',', '.')) : body.preco
-    })
+    // Tratamento de preço (vírgula para ponto) e validação Zod
+    const cleanPreco = typeof body.preco === 'string' 
+        ? parseFloat(body.preco.replace(',', '.')) 
+        : body.preco;
 
-    // 1. UPSERT no Catálogo Global (produtos)
+    const data = produtoSchema.parse({ ...body, preco: cleanPreco });
+
+    // 1. UPSERT Global (Mantém o acervo atualizado)
     const resProduto = await sql.query(`
       INSERT INTO produtos (nome, descricao, imagem_url, link_serie, plataforma)
       VALUES ($1, $2, $3, $4, $5)
@@ -143,18 +136,15 @@ export async function POST(request: Request) {
         imagem_url = COALESCE(EXCLUDED.imagem_url, produtos.imagem_url),
         link_serie = COALESCE(EXCLUDED.link_serie, produtos.link_serie),
         plataforma = COALESCE(EXCLUDED.plataforma, produtos.plataforma)
-      RETURNING id, nome
+      RETURNING id
     `, [data.nome.trim(), data.descricao, data.imagem_url, data.link_serie, data.plataforma])
 
-    const produtoId = resProduto.rows[0].id
+    const produtoId = resProduto.rows[0].id;
 
-    // 2. UPSERT no Vínculo de Preço do Grupo (user_series)
-    // Se enviarmos o 'id' do corpo, atualizamos por ID. 
-    // Se não, tentamos inserir e se houver conflito de [user+produto+grupo], atualizamos o preço/ativo.
+    // 2. UPSERT do Vínculo (Lógica por ID ou por Constraint Única)
     let resVinculo;
-
     if (body.id) {
-      // Atualização direta de um vínculo existente
+      // Edição de vínculo existente
       resVinculo = await sql.query(`
         UPDATE user_series 
         SET preco = $1, ativo = $2, grupo_id = $3, updated_at = NOW()
@@ -162,7 +152,7 @@ export async function POST(request: Request) {
         RETURNING *
       `, [data.preco, data.ativo, data.grupo_id, body.id, userId])
     } else {
-      // Novo vínculo ou atualização por conflito de canal
+      // Novo vínculo (Auto-vínculo ou Cadastro novo)
       resVinculo = await sql.query(`
         INSERT INTO user_series (user_id, produto_id, grupo_id, preco, ativo, updated_at)
         VALUES ($1, $2, $3, $4, $5, NOW())
@@ -174,31 +164,11 @@ export async function POST(request: Request) {
       `, [userId, produtoId, data.grupo_id, data.preco, data.ativo])
     }
 
-    if (resVinculo.rowCount === 0) {
-      return NextResponse.json({ error: "Falha ao vincular: Registro não encontrado" }, { status: 404 })
-    }
-
-    // 3. Log de Auditoria
-    await sql.query(`
-      INSERT INTO activity_logs (user_id, action, entity_type, entity_id, details)
-      VALUES ($1, 'sync_product_v2', 'user_series', $2, $3)
-    `, [userId, resVinculo.rows[0].id, JSON.stringify({ 
-        nome: resProduto.rows[0].nome, 
-        grupo_id: data.grupo_id, 
-        preco: data.preco 
-      })])
-
-    return NextResponse.json({
-      success: true,
-      produto: resProduto.rows[0],
-      config: resVinculo.rows[0]
-    }, { status: 201 })
+    return NextResponse.json({ success: true, vinculo: resVinculo.rows[0] }, { status: 201 })
 
   } catch (error: any) {
     console.error("❌ Erro no POST produtos:", error)
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: error.errors[0].message }, { status: 400 })
-    }
+    if (error instanceof z.ZodError) return NextResponse.json({ error: error.errors[0].message }, { status: 400 })
     return NextResponse.json({ error: "Falha ao sincronizar obra" }, { status: 500 })
   }
 }

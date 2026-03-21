@@ -2,7 +2,7 @@ import { getServerSession } from "next-auth"
 import { notFound } from "next/navigation"
 import { authOptions } from "@/lib/auth"
 import { sql } from "@/lib/db"
-import { ProdutoForm } from "@/components/dashboard/produtos/produto-form"
+import { ProdutoForm } from "@/components/dashboard/vendas/VendaRegistroForm"
 
 export default async function EditarProdutoPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions)

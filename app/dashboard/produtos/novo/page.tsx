@@ -1,7 +1,7 @@
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { sql } from "@/lib/db"
-import { ProdutoForm } from "@/components/dashboard/produtos/produto-form"
+import { ProdutoForm } from "@/components/dashboard/vendas/VendaRegistroForm"
 import { redirect } from "next/navigation"
 import { TabelaGlobal } from "@/components/dashboard/produtos/tabela-global"
 import { Suspense } from "react"

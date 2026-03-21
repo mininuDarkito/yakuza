@@ -15,14 +15,16 @@ export async function GET(request: Request) {
         const search = searchParams.get('search') || '';
         const plataforma = searchParams.get('plataforma');
         
-        // Lógica de Paginação (6 colunas * 3 linhas = 18 itens)
+        // --- LOGICA DE PAGINAÇÃO FLEXÍVEL ---
         const page = parseInt(searchParams.get('page') || '1');
-        const limit = 18;
+        
+        // Se o componente enviar um limit, usamos ele. Se não, o padrão é 18 (para não quebrar o outro componente)
+        const limitParam = searchParams.get('limit');
+        const limit = limitParam ? parseInt(limitParam) : 18; 
+        
         const offset = (page - 1) * limit;
 
-        const queryValues: any[] = [userId, `%${search}%`];
-        
-        // Query com COUNT(*) OVER() para pegar o total sem precisar de outra consulta
+        // Query base com COUNT(*) OVER() para metadados
         let query = `
             SELECT 
                 p.id, p.nome, p.imagem_url, p.plataforma, p.nome_alternativo, 
@@ -32,30 +34,33 @@ export async function GET(request: Request) {
             WHERE p.id NOT IN (
                 SELECT produto_id FROM user_series WHERE user_id = $1
             )
-            AND p.nome ILIKE $2
+            AND (p.nome ILIKE $2 OR p.nome_alternativo ILIKE $2)
         `;
 
-        // Filtro de plataforma
+        const queryValues: any[] = [userId, `%${search}%`];
         let paramIndex = 3;
+
+        // Filtro de plataforma
         if (plataforma && plataforma !== "TODAS") {
             query += ` AND p.plataforma = $${paramIndex}`;
             queryValues.push(plataforma);
             paramIndex++;
         }
 
-        // Adiciona Ordenação, Limite e Offset para a paginação
+        // Ordenação por nome
         query += ` ORDER BY p.nome ASC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
         queryValues.push(limit, offset);
         
         const res = await sql.query(query, queryValues);
 
-        // O total de itens vem em cada linha da coluna total_count (usamos a primeira)
+        // O total de itens vem na coluna total_count de qualquer linha
         const totalItems = res.rows.length > 0 ? parseInt(res.rows[0].total_count) : 0;
 
         return NextResponse.json({
             items: res.rows,
             total: totalItems,
             page,
+            limit, // Retornamos o limite usado para conferência
             totalPages: Math.ceil(totalItems / limit)
         });
 
