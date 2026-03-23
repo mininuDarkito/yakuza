@@ -25,7 +25,7 @@ export async function GET(request: Request) {
   try {
     const res = await sql.query(`
       SELECT 
-        p.id, p.nome, p.plataforma, p.imagem_url, p.nome_alternativo, p.created_at, p.descricao,
+        p.id, p.nome, p.plataforma, p.link_serie ,p.imagem_url, p.nome_alternativo, p.created_at, p.descricao,
         (SELECT COUNT(*)::int FROM vendas WHERE produto_id = p.id) as total_vendas_count,
         (SELECT COUNT(DISTINCT user_id)::int FROM user_series WHERE produto_id = p.id) as total_vendedores,
         (SELECT COUNT(DISTINCT grupo_id)::int FROM user_series WHERE produto_id = p.id) as total_grupos,

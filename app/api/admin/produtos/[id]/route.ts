@@ -17,14 +17,14 @@ export async function PATCH(
 
   try {
     const body = await request.json()
-    const { nome, nome_alternativo, plataforma, imagem_url } = body
+    const { nome, nome_alternativo, link_serie ,plataforma, imagem_url } = body
 
     const res = await sql.query(`
       UPDATE produtos 
-      SET nome = $1, nome_alternativo = $2, plataforma = $3, imagem_url = $4, updated_at = NOW()
-      WHERE id = $5
+      SET nome = $1, nome_alternativo = $2, link_serie = $3, plataforma = $4, imagem_url = $5, updated_at = NOW()
+      WHERE id = $6
       RETURNING *
-    `, [nome, nome_alternativo, plataforma, imagem_url, id])
+    `, [nome, nome_alternativo, link_serie, plataforma,  imagem_url, id])
 
     if (res.rowCount === 0) return NextResponse.json({ error: "Não encontrado" }, { status: 404 })
 

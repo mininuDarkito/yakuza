@@ -35,7 +35,7 @@ interface Produto {
   total_grupos: number
   detalhe_vendedores?: Vendedor[]
   descricao?: string
-  link_series: string | null
+  link_serie: string | null
 }
 
 export function SeriesManager() {
@@ -286,6 +286,16 @@ export function SeriesManager() {
                 onChange={(e) => setEditingItem(prev => prev ? {...prev, nome: e.target.value} : null)}
               />
             </div>
+
+            <div className="space-y-1">
+              <label className="text-[10px] font-black uppercase text-zinc-500 regular">Link da Serie</label>
+              <Input 
+                value={editingItem?.link_serie || ""} 
+                className="bg-zinc-900 border-white/10 regular font-bold"
+                onChange={(e) => setEditingItem(prev => prev ? {...prev, link_serie: e.target.value} : null)}
+              />
+            </div>
+
             <div className="space-y-1">
               <label className="text-[10px] font-black uppercase text-zinc-500 regular">Nome Alternativo</label>
               <Input 

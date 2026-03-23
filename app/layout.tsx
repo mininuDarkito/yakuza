@@ -38,13 +38,12 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="pt-BR" suppressHydrationWarning> {/* Adicione suppressHydrationWarning aqui */}
+    <html lang="pt-BR" suppressHydrationWarning>
       <body className="font-sans antialiased">
         <SessionProvider>
-          {/* Envolvendo a aplicação com o ThemeProvider */}
           <ThemeProvider
             attribute="class"
-            defaultTheme="dark" // O sistema iniciará no escuro por padrão
+            defaultTheme="dark"
             enableSystem
             disableTransitionOnChange
           >
