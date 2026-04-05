@@ -179,7 +179,7 @@ function ProdutoRow({ produto, mesAtual }: ProdutoRowProps) {
         </div>
         <div className="text-right">
           <p className="font-bold text-primary text-lg">
-            R$ {totalArrecadado.toFixed(2).replace(".", ",")}
+            $ {totalArrecadado.toFixed(2).replace(".", ",")}
           </p>
         </div>
       </div>
@@ -896,7 +896,7 @@ export function GroupManager() {
             </CardHeader>
             <CardContent>
               <p className="text-3xl font-bold text-primary">
-                R$ {totalAReceber.toFixed(2).replace(".", ",")}
+                $ {totalAReceber.toFixed(2).replace(".", ",")}
               </p>
               <p className="text-xs text-muted-foreground mt-1">Todos os grupos</p>
             </CardContent>
@@ -911,7 +911,7 @@ export function GroupManager() {
             </CardHeader>
             <CardContent>
               <p className={`text-3xl font-bold ${searchGrupo ? "text-secondary" : "text-muted-foreground"}`}>
-                R$ {totalAReceberFiltrado.toFixed(2).replace(".", ",")}
+                $ {totalAReceberFiltrado.toFixed(2).replace(".", ",")}
               </p>
               <p className="text-xs text-muted-foreground mt-1">
                 {searchGrupo ? `Filtro: "${searchGrupo}"` : "Nenhum filtro ativo"}
@@ -928,7 +928,7 @@ export function GroupManager() {
             </CardHeader>
             <CardContent>
               <p className="text-3xl font-bold ">
-                R$ {totalPendente.toFixed(2).replace(".", ",")}
+                $ {totalPendente.toFixed(2).replace(".", ",")}
               </p>
               <p className="text-xs text-muted-foreground mt-1">Grupos pagos, não recebidos</p>
             </CardContent>

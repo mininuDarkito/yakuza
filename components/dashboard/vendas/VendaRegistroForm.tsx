@@ -245,7 +245,7 @@ export function VendaRegistroForm({ grupos, obrasVinculadas }: any) {
                   <FormItem>
                     <FormLabel className="text-[10px] font-black uppercase italic text-muted-foreground ml-2 text-primary">Preço Unit.</FormLabel>
                     <FormControl>
-                      <Input placeholder="R$ 0,00" className="h-12 font-bold rounded-xl text-emerald-500" {...field} />
+                      <Input placeholder="$ 0,00" className="h-12 font-bold rounded-xl text-emerald-500" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

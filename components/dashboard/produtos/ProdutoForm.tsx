@@ -47,12 +47,21 @@ export function ProdutoForm({ produto, grupos }: { produto?: any, grupos: any[] 
   const onSubmit = async (data: any) => {
     setIsLoading(true)
     try {
+      if (!data.preco || data.preco.trim() === "") {
+        throw new Error("Por favor, preencha o preço sugerido.");
+      }
+      
+      const precoNumber = parseFloat(data.preco.replace(",", "."));
+      if (isNaN(precoNumber) || precoNumber < 0) {
+        throw new Error("O preço informado possui um formato inválido.");
+      }
+
       const response = await fetch("/api/produtos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           grupo_id: data.grupo_id,
-          preco: parseFloat(data.preco.replace(",", ".")),
+          preco: precoNumber,
           produto_id: predefProdutoId || produto?.produto_id,
           nome: obraData?.nome, // Dados que vieram do fetch
           imagem_url: obraData?.imagem_url,
@@ -60,7 +69,10 @@ export function ProdutoForm({ produto, grupos }: { produto?: any, grupos: any[] 
           link_serie: obraData?.link_serie
         }),
       })
-      if (!response.ok) throw new Error("Falha ao vincular")
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || "Falha ao vincular")
+      }
       toast.success("Obra vinculada ao seu acervo!")
       router.push("/dashboard/produtos")
     } catch (error: any) {
@@ -137,7 +149,7 @@ export function ProdutoForm({ produto, grupos }: { produto?: any, grupos: any[] 
                 <FormLabel className="text-[10px] font-black uppercase italic text-primary ml-1">Preço Unitário Sugerido</FormLabel>
                 <FormControl>
                   <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-primary font-black italic text-sm">R$</span>
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-primary font-black italic text-sm">$</span>
                     <Input {...field} className="h-12 pl-12 bg-primary/5 border-primary/20 rounded-xl font-black italic text-xl text-primary focus:border-primary transition-all" placeholder="0,00" />
                   </div>
                 </FormControl>

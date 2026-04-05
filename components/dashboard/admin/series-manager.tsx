@@ -40,6 +40,8 @@ interface Produto {
 
 export function SeriesManager() {
   const [series, setSeries] = useState<Produto[]>([])
+  const [plataformas, setPlataformas] = useState<string[]>([])
+  const [filterPlataforma, setFilterPlataforma] = useState("todos")
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [search, setSearch] = useState("")
@@ -53,10 +55,11 @@ export function SeriesManager() {
   const fetchSeries = async () => {
     setLoading(true)
     try {
-      const res = await fetch(`/api/admin/produtos?page=${page}&search=${search}`) 
+      const res = await fetch(`/api/admin/produtos?page=${page}&search=${search}&plataforma=${filterPlataforma}`) 
       const data = await res.json()
       setSeries(data.items || [])
       setTotalPages(data.totalPages || 1)
+      if (data.plataformas) setPlataformas(data.plataformas)
     } catch (error) {
       toast.error("Erro ao sincronizar catálogo")
     } finally {
@@ -114,14 +117,27 @@ export function SeriesManager() {
     <div className="space-y-6">
       {/* TOOLBAR */}
       <div className="flex flex-col md:flex-row gap-4 items-center justify-between bg-zinc-950 p-4 rounded-2xl border border-white/5 shadow-2xl">
-        <form onSubmit={handleSearch} className="flex items-center gap-3 w-full md:max-w-md">
-          <Search className="h-5 w-5 text-primary" />
-          <Input
-            placeholder="PESQUISAR NO CATÁLOGO..."
-            className="bg-transparent border-none focus-visible:ring-0 font-black regular uppercase text-xs tracking-widest text-white"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+        <form onSubmit={handleSearch} className="flex flex-col sm:flex-row items-center gap-3 w-full md:max-w-2xl">
+          <div className="flex items-center gap-3 flex-1 w-full border-b sm:border-b-0 border-white/5 pb-2 sm:pb-0">
+            <Search className="h-5 w-5 text-primary shrink-0" />
+            <Input
+              placeholder="PESQUISAR NO CATÁLOGO..."
+              className="bg-transparent border-none focus-visible:ring-0 font-black regular uppercase text-xs tracking-widest text-white px-0"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <select
+              value={filterPlataforma}
+              onChange={(e) => setFilterPlataforma(e.target.value)}
+              className="h-9 w-full sm:w-[130px] bg-zinc-900 border border-white/10 rounded-xl px-3 text-[10px] font-black text-zinc-400 focus:border-primary outline-none uppercase italic"
+            >
+              <option value="todos">Plataforma</option>
+              {plataformas.map(p => <option key={p} value={p}>{p}</option>)}
+            </select>
+            <Button type="submit" variant="secondary" className="h-9 font-black uppercase text-[10px]">Filtrar</Button>
+          </div>
         </form>
         <Button variant="ghost" size="sm" onClick={fetchSeries} className="text-[10px] font-black uppercase regular hover:bg-white/5">
           <RefreshCcw className={`h-3 w-3 mr-2 ${loading ? 'animate-spin' : ''}`} /> Sincronizar

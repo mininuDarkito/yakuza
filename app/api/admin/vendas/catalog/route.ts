@@ -23,13 +23,14 @@ export async function GET(request: Request) {
                 p.id as produto_id,
                 p.nome,
                 p.imagem_url,
+                p.plataforma,
                 COUNT(v.id)::int as total_caps_vendidos,
                 COALESCE(SUM(v.preco_total), 0)::float as faturamento_serie,
                 COUNT(CASE WHEN v.grupo_id IS NULL THEN 1 END)::int as pendencias_vinculo
             FROM vendas v
             JOIN produtos p ON v.produto_id = p.id
             WHERE v.user_id = $1
-            GROUP BY p.id, p.nome, p.imagem_url
+            GROUP BY p.id, p.nome, p.imagem_url, p.plataforma
             ORDER BY pendencias_vinculo DESC, p.nome ASC
         `, [userId]);
 

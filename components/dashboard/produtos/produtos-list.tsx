@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, Fragment } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import {
@@ -193,8 +193,8 @@ export function ProdutosList({ produtos }: { produtos: ProdutoRaw[] }) {
               const temMultiplosGrupos = produto.vincos.length > 0
 
               return (
-                <>
-                  <TableRow key={produto.produto_id} className="border-white/5 group hover:bg-white/[0.01] transition-colors">
+                <Fragment key={produto.produto_id}>
+                  <TableRow className="border-white/5 group hover:bg-white/[0.01] transition-colors">
                     <TableCell>
                       {temMultiplosGrupos && (
                         <Button variant="ghost" size="icon" onClick={() => toggleRow(produto.produto_id)} className="text-zinc-500 hover:text-white">
@@ -278,7 +278,7 @@ export function ProdutosList({ produtos }: { produtos: ProdutoRaw[] }) {
                       </TableCell>
                     </TableRow>
                   ))}
-                </>
+                </Fragment>
               )
             })}
           </TableBody>

@@ -5,7 +5,7 @@ import { toast } from "sonner"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import {
-    Search, Save, X, Edit3, Loader2, Trash2,
+    Search, Save, X, Edit3, Loader2, Trash2, CopyPlus,
     ChevronLeft, ChevronRight, Filter, Zap, Lock, Unlock, ShieldAlert, ShieldCheck
 } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -23,6 +23,7 @@ export function EditVendasAdmin({ usuarios, grupos: gruposIniciais = [] }: EditV
     const [view, setView] = useState<'catalog' | 'details'>('catalog')
     const [catalog, setCatalog] = useState<any[]>([])
     const [searchTerm, setSearchTerm] = useState("")
+    const [filterPlataforma, setFilterPlataforma] = useState("todos")
     const [history, setHistory] = useState<any[]>([])
     const [selectedProduct, setSelectedProduct] = useState<any>(null)
     const [loading, setLoading] = useState(false)
@@ -57,9 +58,15 @@ export function EditVendasAdmin({ usuarios, grupos: gruposIniciais = [] }: EditV
         fetchUserGroups();
     }, [selectedUser]);
 
-    const filteredCatalog = catalog.filter(item =>
-        item.nome.toLowerCase().includes(searchTerm.toLowerCase())
-    )
+    const plataformasDisponiveis = Array.from(
+        new Set(catalog.map((p) => p.plataforma).filter(Boolean))
+    ).sort()
+
+    const filteredCatalog = catalog.filter(item => {
+        const matchesSearch = item.nome.toLowerCase().includes(searchTerm.toLowerCase())
+        const matchesPlataforma = filterPlataforma === "todos" || item.plataforma === filterPlataforma
+        return matchesSearch && matchesPlataforma
+    })
 
     const fetchCatalog = async (userId: string) => {
         if (!userId) return
@@ -160,6 +167,48 @@ export function EditVendasAdmin({ usuarios, grupos: gruposIniciais = [] }: EditV
         }
     }
 
+    const handleQuickCreate = async (venda: any) => {
+        let nextCap = Number(venda.quantidade) + 1;
+        
+        try {
+            const maxRes = await fetch(`/api/admin/vendas/next-chapter?produto_id=${venda.produto_id}`);
+            if (maxRes.ok) {
+                const maxData = await maxRes.json();
+                const globalMax = Number(maxData.max_cap || 0);
+                if (globalMax >= nextCap) {
+                    nextCap = globalMax + 1;
+                }
+            }
+        } catch (e) {
+            console.error("Erro ao buscar próximo capítulo", e);
+        }
+
+        if (!confirm(`Deseja registrar o capítulo ${nextCap} com o mesmo preço rapidamente?`)) return;
+        
+        try {
+            const res = await fetch('/api/admin/vendas/create', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    user_id: selectedUser,
+                    produto_id: venda.produto_id,
+                    grupo_id: venda.grupo_id,
+                    quantidade: nextCap,
+                    preco_unitario: venda.preco_unitario,
+                    data_venda: new Date(venda.data_venda).toISOString().split('T')[0] + 'T00:00:00.000Z'
+                })
+            });
+            if (!res.ok) {
+                 const data = await res.json();
+                 throw new Error(data.error || "Erro ao criar registro");
+            }
+            toast.success(`Capítulo ${nextCap} registrado rapidamente!`);
+            fetchHistory(selectedProduct.produto_id, currentPage);
+        } catch (error: any) {
+            toast.error(error.message || "Erro ao criar registro.");
+        }
+    }
+
     const removeItem = async (id: string) => {
         if (!confirm("Remover este registro permanentemente?")) return
         const res = await fetch(`/api/admin/vendas/delete?id=${id}`, { method: 'DELETE' })
@@ -193,16 +242,32 @@ export function EditVendasAdmin({ usuarios, grupos: gruposIniciais = [] }: EditV
                     </div>
 
                     {view === 'catalog' && catalog.length > 0 && (
-                        <div className="flex-1 space-y-2 animate-in fade-in">
-                            <label className="text-[10px] font-black uppercase italic text-zinc-500 tracking-widest">Buscar Obra</label>
-                            <div className="relative">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
-                                <Input
-                                    placeholder="Localizar..."
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                    className="pl-10 h-11 bg-zinc-900 border-white/10 rounded-xl font-bold italic"
-                                />
+                        <div className="flex flex-1 gap-4">
+                            <div className="flex-1 space-y-2 animate-in fade-in">
+                                <label className="text-[10px] font-black uppercase italic text-zinc-500 tracking-widest">Buscar Obra</label>
+                                <div className="relative">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
+                                    <Input
+                                        placeholder="Localizar..."
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                        className="pl-10 h-11 bg-zinc-900 border-white/10 rounded-xl font-bold italic"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="w-[180px] space-y-2 animate-in fade-in">
+                                <label className="text-[10px] font-black uppercase italic text-zinc-500 tracking-widest">Plataforma</label>
+                                <select
+                                    value={filterPlataforma}
+                                    onChange={(e) => setFilterPlataforma(e.target.value)}
+                                    className="w-full h-11 bg-zinc-900 border border-white/10 rounded-xl px-3 text-xs font-bold text-white focus:border-primary outline-none uppercase italic"
+                                >
+                                    <option value="todos">Todas</option>
+                                    {plataformasDisponiveis.map(plat => (
+                                        <option key={plat as string} value={plat as string}>{plat as string}</option>
+                                    ))}
+                                </select>
                             </div>
                         </div>
                     )}
@@ -349,6 +414,7 @@ export function EditVendasAdmin({ usuarios, grupos: gruposIniciais = [] }: EditV
                                                 </div>
                                             ) : (
                                                 <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <Button size="icon" variant="ghost" title="Cadastrar próximo capítulo" onClick={() => handleQuickCreate(v)} className="h-7 w-7 text-emerald-500 hover:text-emerald-400 hover:bg-emerald-500/10"><CopyPlus className="h-4 w-4" /></Button>
                                                     <Button size="icon" variant="ghost" onClick={() => removeItem(v.id)} className="h-7 w-7 text-zinc-600 hover:text-red-500"><Trash2 className="h-4 w-4" /></Button>
                                                     <Button size="icon" variant="ghost" onClick={() => startEdit(v)} className="h-7 w-7 text-primary hover:bg-primary/10"><Edit3 className="h-4 w-4" /></Button>
                                                 </div>

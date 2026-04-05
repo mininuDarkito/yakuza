@@ -21,8 +21,16 @@ export async function GET(request: Request) {
   const limit = 35 
   const offset = (page - 1) * limit
   const search = searchParams.get("search") || ""
+  const plataforma = searchParams.get("plataforma") || "todos"
 
   try {
+    const values: any[] = [`%${search}%`, limit, offset]
+    let platFilter = ""
+    if (plataforma !== "todos") {
+      values.push(plataforma)
+      platFilter = `AND p.plataforma = $4`
+    }
+
     const res = await sql.query(`
       SELECT 
         p.id, p.nome, p.plataforma, p.link_serie ,p.imagem_url, p.nome_alternativo, p.created_at, p.descricao,
@@ -41,22 +49,33 @@ export async function GET(request: Request) {
           WHERE us.produto_id = p.id
         ) as detalhe_vendedores
       FROM produtos p
-      WHERE p.nome ILIKE $1 OR p.nome_alternativo ILIKE $1 OR p.descricao ILIKE $1
+      WHERE (p.nome ILIKE $1 OR p.nome_alternativo ILIKE $1 OR p.descricao ILIKE $1) ${platFilter}
       ORDER BY p.created_at DESC
       LIMIT $2 OFFSET $3
-    `, [`%${search}%`, limit, offset])
+    `, values)
+
+    const countValues: any[] = [`%${search}%`]
+    let countPlatFilter = ""
+    if (plataforma !== "todos") {
+      countValues.push(plataforma)
+      countPlatFilter = `AND plataforma = $2`
+    }
 
     const countRes = await sql.query(
-      `SELECT COUNT(*)::int FROM produtos WHERE nome ILIKE $1 OR nome_alternativo ILIKE $1`,
-      [`%${search}%`]
+      `SELECT COUNT(*)::int FROM produtos WHERE (nome ILIKE $1 OR nome_alternativo ILIKE $1 OR descricao ILIKE $1) ${countPlatFilter}`,
+      countValues
     )
+
+    const platRes = await sql.query(`SELECT DISTINCT plataforma FROM produtos WHERE plataforma IS NOT NULL AND plataforma != ''`)
+    const plataformas = platRes.rows.map(r => r.plataforma).sort()
 
     const totalItems = countRes.rows[0].count
 
     return NextResponse.json({
       items: res.rows,
       totalPages: Math.ceil(totalItems / limit),
-      totalItems: totalItems
+      totalItems: totalItems,
+      plataformas
     })
 
   } catch (error) {
