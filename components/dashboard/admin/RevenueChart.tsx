@@ -65,7 +65,7 @@ export function RevenueChart({ data }: { data: RevenueData[] }) {
                           {payload[0].payload.name}
                         </p>
                         <p className="text-sm font-black text-emerald-400 italic">
-                          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(payload[0].value as number)}
+                          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'USD' }).format(payload[0].value as number)}
                         </p>
                       </div>
                     )

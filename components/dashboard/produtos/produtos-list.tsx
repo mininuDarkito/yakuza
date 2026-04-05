@@ -256,7 +256,7 @@ export function ProdutosList({ produtos }: { produtos: ProdutoRaw[] }) {
                       </TableCell>
                       <TableCell className="text-center">
                         <p className="font-black text-base text-emerald-400 italic">
-                          {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(vinculo.preco))}
+                          {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "USD" }).format(Number(vinculo.preco))}
                         </p>
                       </TableCell>
                       <TableCell className="text-right">

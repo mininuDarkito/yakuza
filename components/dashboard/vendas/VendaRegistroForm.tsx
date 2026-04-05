@@ -254,7 +254,7 @@ export function VendaRegistroForm({ grupos, obrasVinculadas }: any) {
               <div className="bg-primary/5 border-2 border-primary/20 p-3 rounded-2xl h-12 flex items-center justify-between px-4 shadow-inner">
                 <span className="text-[10px] font-black uppercase text-primary italic">Total</span>
                 <span className="font-black text-lg italic text-primary">
-                  {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(totalReceber)}
+                  {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "USD" }).format(totalReceber)}
                 </span>
               </div>
             </div>

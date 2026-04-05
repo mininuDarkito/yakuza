@@ -64,7 +64,7 @@ export function RecentSales({ vendas }: { vendas: Venda[] }) {
             <p className="text-sm font-black tracking-tight text-foreground">
               {new Intl.NumberFormat("pt-BR", {
                 style: "currency",
-                currency: "BRL",
+                currency: "USD",
               }).format(Number(venda.preco_total))}
             </p>
             <p className="text-[10px] uppercase font-bold text-muted-foreground/70">

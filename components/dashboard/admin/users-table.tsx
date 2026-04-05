@@ -67,7 +67,7 @@ export function UsersTable({ users }: { users: UserAdmin[] }) {
               <TableCell className="text-right">
                 <div className="flex flex-col items-end">
                   <span className="font-mono font-black text-emerald-600 dark:text-emerald-400">
-                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(user.faturamento_total)}
+                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'USD' }).format(user.faturamento_total)}
                   </span>
                   {user.faturamento_total > 0 && (
                     <span className="text-[9px] text-emerald-500 font-bold flex items-center gap-0.5">

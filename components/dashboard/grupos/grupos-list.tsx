@@ -139,7 +139,7 @@ export function GruposList({ grupos }: { grupos: Grupo[] }) {
                     <span className="font-black text-xl tracking-tighter text-emerald-400 italic">
                       {new Intl.NumberFormat("pt-BR", {
                         style: "currency",
-                        currency: "BRL",
+                        currency: "USD",
                       }).format(Number(grupo.faturamento_total || 0))}
                     </span>
                     <div className="flex items-center gap-1 text-[9px] text-zinc-500 font-black uppercase italic tracking-widest">

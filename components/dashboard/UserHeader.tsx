@@ -77,7 +77,7 @@ export function UserHeader({ user, viewMode }: UserHeaderProps) {
                     <div className="bg-black/40 border border-white/10 p-3 rounded-2xl backdrop-blur-md min-w-[140px]">
                         <p className="text-[9px] font-black uppercase opacity-70 mb-1 tracking-widest text-zinc-300">Faturamento Bruto</p>
                         <p className="text-xl font-black text-emerald-400 italic leading-none font-mono">
-                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(user.gmv_total || 0)}
+                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'USD' }).format(user.gmv_total || 0)}
                         </p>
                     </div>
                     <div className="bg-black/40 border border-white/10 p-3 rounded-2xl backdrop-blur-md text-center min-w-[100px]">

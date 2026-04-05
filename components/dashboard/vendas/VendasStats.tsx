@@ -21,7 +21,7 @@ export function VendasStats({
   const formatCurrency = (value: number) => 
     new Intl.NumberFormat("pt-BR", { 
       style: "currency", 
-      currency: "BRL" 
+      currency: "USD" 
     }).format(isNaN(value) ? 0 : value);
 
   const stats = [

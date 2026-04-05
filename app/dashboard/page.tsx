@@ -75,7 +75,7 @@ export default async function DashboardPage() {
       title: "Receita Total",
       value: new Intl.NumberFormat("pt-BR", {
         style: "currency",
-        currency: "BRL",
+        currency: "USD",
       }).format(Number(totalVendasValor)),
       icon: TrendingUp,
       href: "/dashboard/vendas",

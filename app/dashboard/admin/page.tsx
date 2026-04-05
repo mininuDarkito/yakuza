@@ -122,7 +122,7 @@ export default async function AdminPage() {
                 <CardHeader className="pb-2">
                   <CardTitle className="text-[10px] font-black uppercase opacity-60 tracking-widest text-primary italic">Volume Bruto (GMV)</CardTitle>
                   <div className="text-4xl font-black tracking-tighter text-emerald-400">
-                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(stats.gmv_total)}
+                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'USD' }).format(stats.gmv_total)}
                   </div>
                 </CardHeader>
               </Card>
@@ -153,7 +153,7 @@ export default async function AdminPage() {
                     <CardContent className="p-4 text-center">
                       <p className="text-[10px] font-black uppercase text-zinc-500 mb-1">{m.mes_nome}</p>
                       <p className="text-lg font-black text-emerald-500">
-                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(m.total)}
+                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'USD' }).format(m.total)}
                       </p>
                     </CardContent>
                   </Card>

@@ -247,7 +247,7 @@ export function VendaForm({ grupos, produtos, initialProdutoId }: { grupos: Grup
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60">Total a Receber</p>
                   <p className="text-5xl font-black tracking-tighter">
-                    {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(totalGeral)}
+                    {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "USD" }).format(totalGeral)}
                   </p>
                 </div>
                 <div className="flex flex-col items-end">
