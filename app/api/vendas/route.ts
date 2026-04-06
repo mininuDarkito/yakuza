@@ -7,7 +7,7 @@ import { z } from "zod"
 const vendaSchema = z.object({
   produto_id: z.string().uuid("Série inválida"),
   grupo_id: z.string().uuid("Grupo inválido"), // Agora obrigatório vir do Form
-  capitulos: z.array(z.number().int()).min(1, "Informe ao menos um capítulo"),
+  capitulos: z.array(z.number()).min(1, "Informe ao menos um capítulo"),
   preco_unitario: z.number().positive("Preço deve ser positivo"),
   observacoes: z.string().optional(),
   data_venda: z.string().optional(),

@@ -30,14 +30,14 @@ export async function POST(request: Request) {
 
       parts.forEach(part => {
         if (part.includes("-")) {
-          const [start, end] = part.split("-").map(p => parseInt(p.trim()));
+          const [start, end] = part.split("-").map(p => parseFloat(p.trim()));
           if (!isNaN(start) && !isNaN(end)) {
             const min = Math.min(start, end);
             const max = Math.max(start, end);
             for (let i = min; i <= max; i++) nums.add(i);
           }
         } else {
-          const n = parseInt(part.trim());
+          const n = parseFloat(part.trim());
           if (!isNaN(n)) nums.add(n);
         }
       });
@@ -66,7 +66,7 @@ export async function POST(request: Request) {
       )
       SELECT 
         $1, $2, $3, 
-        unnest($4::int[]), 
+        unnest($4::numeric[]), 
         $5, $5, 
         $6, $7::timestamptz
       ON CONFLICT (user_id, produto_id, grupo_id, quantidade) 

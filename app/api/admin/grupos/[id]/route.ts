@@ -116,7 +116,7 @@ export async function GET(
               transacoes: transacoesRes.rows.map((t) => ({
                 id: t.id,
                 data: t.data,
-                quantidade: parseInt(t.quantidade) || 0,
+                quantidade: parseFloat(t.quantidade) || 0,
                 valorUnitario: parseFloat(t.valor_unitario) || 0,
               })),
             }

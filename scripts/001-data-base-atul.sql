@@ -57,7 +57,7 @@ CREATE TABLE vendas (
     user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     produto_id uuid NOT NULL REFERENCES produtos(id) ON DELETE CASCADE,
     grupo_id uuid REFERENCES grupos(id) ON DELETE SET NULL,
-    quantidade integer NOT NULL,
+    quantidade numeric(10,2) NOT NULL,
     preco_unitario numeric(10,2) NOT NULL,
     preco_total numeric(10,2) NOT NULL,
     observacoes text,

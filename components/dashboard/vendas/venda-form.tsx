@@ -93,12 +93,12 @@ export function VendaForm({ grupos, produtos, initialProdutoId }: { grupos: Grup
     if (!capituloRaw) return { totalItens: 0, lista: [] }
     if (capituloRaw.includes("-")) {
       const parts = capituloRaw.split("-")
-      const inicio = parseInt(parts[0]?.trim()), fim = parseInt(parts[1]?.trim())
+      const inicio = parseFloat(parts[0]?.trim()), fim = parseFloat(parts[1]?.trim())
       if (isNaN(inicio) || isNaN(fim) || inicio > fim) return { totalItens: 0, lista: [] }
       const lista = []; for (let i = inicio; i <= fim; i++) lista.push(i)
       return { totalItens: lista.length, lista }
     }
-    const cap = parseInt(capituloRaw.trim())
+    const cap = parseFloat(capituloRaw.trim())
     return isNaN(cap) ? { totalItens: 0, lista: [] } : { totalItens: 1, lista: [cap] }
   }, [capituloRaw])
 

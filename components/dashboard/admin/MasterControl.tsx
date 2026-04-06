@@ -31,12 +31,12 @@ function parseCapitulosCount(input: string): number {
     const limpo = input.replace(/\s+/g, '');
     if (limpo.includes('-')) {
         const partes = limpo.split('-');
-        const inicio = parseInt(partes[0].replace(/\D/g, ''));
-        const fim = parseInt(partes[1].replace(/\D/g, ''));
-        if (!isNaN(inicio) && !isNaN(fim)) return Math.abs(fim - inicio) + 1;
+        const inicio = parseFloat(partes[0].replace(/[^\d.]/g, ''));
+        const fim = parseFloat(partes[1].replace(/[^\d.]/g, ''));
+        if (!isNaN(inicio) && !isNaN(fim)) return Math.floor(Math.abs(fim - inicio)) + 1;
     }
     if (limpo.includes(',')) return limpo.split(',').filter(cap => cap.length > 0).length;
-    const numerico = limpo.replace(/\D/g, '');
+    const numerico = limpo.replace(/[^\d.]/g, '');
     return numerico ? 1 : 0;
 }
 

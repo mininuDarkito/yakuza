@@ -7,20 +7,20 @@ function explodeCapitulos(input: string): number[] {
     const limpo = input.replace(/\s+/g, '');
     if (limpo.includes('-')) {
         const partes = limpo.split('-');
-        const inicio = parseInt(partes[0].replace(/\D/g, ''));
-        const fim = parseInt(partes[1].replace(/\D/g, ''));
+        const inicio = parseFloat(partes[0].replace(/[^\d.]/g, ''));
+        const fim = parseFloat(partes[1].replace(/[^\d.]/g, ''));
         if (!isNaN(inicio) && !isNaN(fim)) {
             const min = Math.min(inicio, fim);
             const max = Math.max(inicio, fim);
-            return Array.from({ length: max - min + 1 }, (_, i) => min + i);
+            return Array.from({ length: Math.floor(max - min) + 1 }, (_, i) => min + i);
         }
     }
     if (limpo.includes(',')) {
         return limpo.split(',')
-            .map(n => parseInt(n.replace(/\D/g, '')))
+            .map(n => parseFloat(n.replace(/[^\d.]/g, '')))
             .filter(n => !isNaN(n));
     }
-    const unico = parseInt(limpo.replace(/\D/g, ''));
+    const unico = parseFloat(limpo.replace(/[^\d.]/g, ''));
     return isNaN(unico) ? [] : [unico];
 }
 
