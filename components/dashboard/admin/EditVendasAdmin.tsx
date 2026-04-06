@@ -153,7 +153,7 @@ export function EditVendasAdmin({ usuarios, grupos: gruposIniciais = [] }: EditV
                 body: JSON.stringify({
                     id: editForm.id,
                     preco_unitario: editForm.preco_unitario,
-                    quantidade: Number(editForm.quantidade),
+                    quantidade: parseFloat(editForm.quantidade),
                     data_venda: `${editForm.data_venda}T00:00:00.000Z`,
                     grupo_id: editForm.grupo_id
                 })
@@ -168,13 +168,13 @@ export function EditVendasAdmin({ usuarios, grupos: gruposIniciais = [] }: EditV
     }
 
     const handleQuickCreate = async (venda: any) => {
-        let nextCap = Number(venda.quantidade) + 1;
+        let nextCap = parseFloat(venda.quantidade) + 1;
         
         try {
             const maxRes = await fetch(`/api/admin/vendas/next-chapter?produto_id=${venda.produto_id}`);
             if (maxRes.ok) {
                 const maxData = await maxRes.json();
-                const globalMax = Number(maxData.max_cap || 0);
+                const globalMax = parseFloat(maxData.max_cap || 0);
                 if (globalMax >= nextCap) {
                     nextCap = globalMax + 1;
                 }
