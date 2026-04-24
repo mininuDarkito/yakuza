@@ -1,0 +1,154 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model activity_logs {
+  id          String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  user_id     String    @db.Uuid
+  action      String
+  entity_type String
+  entity_id   String?   @db.Uuid
+  details     Json?     @default("{}")
+  created_at  DateTime? @default(now()) @db.Timestamptz(6)
+  users       users     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model grupo_monthly_payment {
+  id             String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  grupo_id       String    @db.Uuid
+  month_year     String    @db.VarChar(7)
+  payment_status Boolean?  @default(false)
+  created_at     DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime? @default(now()) @db.Timestamptz(6)
+  grupos         grupos    @relation(fields: [grupo_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([grupo_id, month_year])
+  @@index([grupo_id], map: "idx_grupo_monthly_payment_grupo_id")
+  @@index([month_year], map: "idx_grupo_monthly_payment_month")
+  @@index([payment_status], map: "idx_grupo_monthly_payment_status")
+}
+
+model grupos {
+  id                    String                  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  user_id               String                  @db.Uuid
+  nome                  String
+  descricao             String?
+  created_at            DateTime?               @default(now()) @db.Timestamptz(6)
+  updated_at            DateTime?               @default(now()) @db.Timestamptz(6)
+  channel_id            String?                 @unique
+  payment_status        Boolean?                @default(false)
+  grupo_monthly_payment grupo_monthly_payment[]
+  users                 users                   @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user_series           user_series[]
+  vendas                vendas[]
+  vendor_monthly_status vendor_monthly_status[]
+  vendor_status         vendor_status[]
+}
+
+model produtos {
+  id               String        @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  nome             String        @unique
+  descricao        String?
+  imagem_url       String?
+  link_serie       String?
+  plataforma       String?       @db.VarChar(255)
+  created_at       DateTime?     @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime?     @default(now()) @db.Timestamptz(6)
+  nome_alternativo String?
+  user_series      user_series[]
+  vendas           vendas[]
+}
+
+model user_series {
+  id         String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  user_id    String    @db.Uuid
+  produto_id String    @db.Uuid
+  grupo_id   String    @db.Uuid
+  preco      Decimal   @default(0.00) @db.Decimal(10, 2)
+  ativo      Boolean?  @default(true)
+  created_at DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at DateTime? @default(now()) @db.Timestamptz(6)
+  grupos     grupos    @relation(fields: [grupo_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  produtos   produtos  @relation(fields: [produto_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users      users     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([user_id, produto_id, grupo_id])
+}
+
+model users {
+  id                    String                  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  discord_id            String                  @unique
+  discord_username      String
+  discord_avatar        String?
+  email                 String?
+  role                  String?                 @default("user")
+  billing_setup         Json?                   @default("{\"chave_pix\": \"\", \"instrucoes\": \"\", \"tipo_chave\": \"pix\", \"metodo_preferido\": \"pix\", \"nome_beneficiario\": \"\"}")
+  created_at            DateTime?               @default(now()) @db.Timestamptz(6)
+  updated_at            DateTime?               @default(now()) @db.Timestamptz(6)
+  discord_banner        String?
+  activity_logs         activity_logs[]
+  grupos                grupos[]
+  user_series           user_series[]
+  vendas                vendas[]
+  vendor_monthly_status vendor_monthly_status[]
+  vendor_status         vendor_status[]
+}
+
+model vendas {
+  id                 String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  user_id            String    @db.Uuid
+  produto_id         String    @db.Uuid
+  grupo_id           String?   @db.Uuid
+  capitulo           Decimal   @db.Decimal(10, 2)
+  preco_unitario     Decimal   @db.Decimal(10, 2)
+  preco_total        Decimal   @db.Decimal(10, 2)
+  observacoes        String?
+  data_venda         DateTime? @default(now()) @db.Timestamptz(6)
+  created_at         DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime? @default(now()) @db.Timestamptz(6)
+  capitulos_detalhes String?
+  lock_user          Boolean?  @default(false)
+  lock_admin         Boolean?  @default(false)
+  grupos             grupos?   @relation(fields: [grupo_id], references: [id], onUpdate: NoAction)
+  produtos           produtos  @relation(fields: [produto_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users              users     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([user_id, produto_id, grupo_id, capitulo], map: "vendas_user_id_produto_id_grupo_id_quantidade_key")
+}
+
+model vendor_monthly_status {
+  id                 String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  user_id            String    @db.Uuid
+  grupo_id           String    @db.Uuid
+  month_year         String    @db.VarChar(7)
+  recebimento_status Boolean?  @default(false)
+  created_at         DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime? @default(now()) @db.Timestamptz(6)
+  grupos             grupos    @relation(fields: [grupo_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users              users     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([user_id, grupo_id, month_year])
+  @@index([grupo_id], map: "idx_vendor_monthly_status_grupo_id")
+  @@index([month_year], map: "idx_vendor_monthly_status_month")
+  @@index([user_id], map: "idx_vendor_monthly_status_user_id")
+}
+
+model vendor_status {
+  id                 String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  user_id            String    @db.Uuid
+  grupo_id           String    @db.Uuid
+  recebimento_status Boolean?  @default(false)
+  created_at         DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime? @default(now()) @db.Timestamptz(6)
+  grupos             grupos    @relation(fields: [grupo_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users              users     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([user_id, grupo_id])
+  @@index([grupo_id], map: "idx_vendor_status_grupo_id")
+  @@index([user_id], map: "idx_vendor_status_user_id")
+}
