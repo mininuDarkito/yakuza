@@ -82,19 +82,32 @@ export async function POST(request: Request) {
     const body = await request.json()
     const data = vendaSchema.parse(body)
 
-    // 1. Validar vínculo (User + Produto + Grupo)
-    const vinculo = await prisma.user_series.findFirst({
-      where: {
-        produto_id: data.produto_id,
-        user_id: userId,
-        grupo_id: data.grupo_id,
-        ativo: true
-      }
-    })
+    // 1. Validar vínculo (User + Produto + Grupo) e buscar preço unificado
+    const [vinculo, grupoPreco] = await Promise.all([
+      prisma.user_series.findFirst({
+        where: {
+          produto_id: data.produto_id,
+          user_id: userId,
+          grupo_id: data.grupo_id,
+          ativo: true
+        }
+      }),
+      prisma.grupo_series.findUnique({
+        where: {
+          grupo_id_produto_id: {
+            grupo_id: data.grupo_id,
+            produto_id: data.produto_id
+          }
+        }
+      })
+    ])
 
     if (!vinculo) {
       return NextResponse.json({ error: "Vínculo com este grupo não encontrado ou inativo." }, { status: 404 })
     }
+
+    // Priorizamos o preço unificado do grupo
+    const precoUnitario = grupoPreco ? Number(grupoPreco.preco) : data.preco_unitario;
 
     // 2. Verificar capítulos já existentes para evitar duplicatas
     const existentes = await prisma.vendas.findMany({
@@ -125,8 +138,8 @@ export async function POST(request: Request) {
             produto_id: data.produto_id,
             grupo_id: data.grupo_id,
             capitulo: cap,
-            preco_unitario: data.preco_unitario,
-            preco_total: data.preco_unitario,
+            preco_unitario: precoUnitario,
+            preco_total: precoUnitario,
             observacoes: data.observacoes || null,
             data_venda: dataVendaFinal,
           }

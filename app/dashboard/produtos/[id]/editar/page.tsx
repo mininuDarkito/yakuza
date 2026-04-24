@@ -24,7 +24,7 @@ export default async function EditarProdutoPage({ params }: { params: Promise<{ 
       SELECT 
         us.id, -- ID do vínculo (user_series)
         us.grupo_id,
-        us.preco,
+        gs.preco,
         us.ativo,
         p.id as produto_id, -- ID global da obra
         p.nome,
@@ -34,6 +34,7 @@ export default async function EditarProdutoPage({ params }: { params: Promise<{ 
         p.plataforma
       FROM user_series us
       INNER JOIN produtos p ON p.id = us.produto_id
+      INNER JOIN grupo_series gs ON p.id = gs.produto_id AND us.grupo_id = gs.grupo_id
       WHERE us.id = $1 AND us.user_id = $2
     `, [id, userId]),
     

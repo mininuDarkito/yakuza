@@ -43,6 +43,13 @@ export default async function NovaVendaPage(props: {
           VALUES ($1, $2, $3, $4, true, NOW())
           ON CONFLICT (user_id, produto_id, grupo_id) DO NOTHING
         `, [userId, produto_id, grupoPadrao, 1.00])
+
+        // Garante que o grupo tenha um preço base definido
+        await sql.query(`
+          INSERT INTO grupo_series (produto_id, grupo_id, preco, created_at)
+          VALUES ($1, $2, $3, NOW())
+          ON CONFLICT (grupo_id, produto_id) DO NOTHING
+        `, [produto_id, grupoPadrao, 1.00])
       }
     }
   }
@@ -64,11 +71,12 @@ export default async function NovaVendaPage(props: {
         p.nome_alternativo,
         p.imagem_url, 
         p.descricao,
-        us.preco, 
+        COALESCE(gs.preco, us.preco) as preco, 
         us.grupo_id,
         p.plataforma
       FROM produtos p
       INNER JOIN user_series us ON p.id = us.produto_id
+      LEFT JOIN grupo_series gs ON p.id = gs.produto_id AND us.grupo_id = gs.grupo_id
       WHERE us.user_id = $1 AND us.ativo = true
       ORDER BY p.nome
     `, [userId]),

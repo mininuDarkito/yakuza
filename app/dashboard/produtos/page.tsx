@@ -35,12 +35,13 @@ export default async function ProdutosPage() {
       p.plataforma,
       p.created_at,
       us.id as id, -- ID da tabela user_series (PK do vínculo)
-      us.preco, 
+      gs.preco, 
       us.ativo,
       g.nome as grupo_nome
     FROM produtos p
     INNER JOIN user_series us ON p.id = us.produto_id
     INNER JOIN grupos g ON us.grupo_id = g.id
+    INNER JOIN grupo_series gs ON p.id = gs.produto_id AND us.grupo_id = gs.grupo_id
     WHERE us.user_id = $1
     ORDER BY p.nome ASC, g.nome ASC
   `, [userId])

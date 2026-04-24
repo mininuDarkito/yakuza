@@ -30,13 +30,14 @@ export async function GET(
     const res = await sql.query(`
       SELECT 
         p.*, 
-        us.preco, 
+        gs.preco, 
         us.ativo, 
         us.grupo_id, 
         g.nome as grupo_nome
       FROM produtos p
-      LEFT JOIN user_series us ON p.id = us.produto_id AND us.user_id = $2
-      LEFT JOIN grupos g ON us.grupo_id = g.id
+      INNER JOIN user_series us ON p.id = us.produto_id AND us.user_id = $2
+      INNER JOIN grupos g ON us.grupo_id = g.id
+      INNER JOIN grupo_series gs ON p.id = gs.produto_id AND us.grupo_id = gs.grupo_id
       WHERE p.id = $1
     `, [id, userId])
 
@@ -130,12 +131,19 @@ export async function PUT(
       UPDATE user_series 
       SET 
           grupo_id = $1, 
-          preco = $2, 
-          ativo = $3, 
+          ativo = $2, 
           updated_at = NOW()
-      WHERE id = $4 AND user_id = $5
+      WHERE id = $3 AND user_id = $4
       RETURNING *
-    `, [data.grupo_id, data.preco, data.ativo, vinculoId, userId])
+    `, [data.grupo_id, data.ativo, vinculoId, userId])
+
+    // 3.1. ATUALIZAÇÃO DO PREÇO UNIFICADO (grupo_series)
+    await sql.query(`
+      INSERT INTO grupo_series (produto_id, grupo_id, preco, updated_at)
+      VALUES ($1, $2, $3, NOW())
+      ON CONFLICT (grupo_id, produto_id) 
+      DO UPDATE SET preco = EXCLUDED.preco, updated_at = NOW()
+    `, [produtoIdGlobal, data.grupo_id, data.preco])
 
     // 4. Log de Atividade
     await sql.query(`

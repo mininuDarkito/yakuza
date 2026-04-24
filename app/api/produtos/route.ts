@@ -26,7 +26,11 @@ export async function GET() {
     const userSeries = await prisma.user_series.findMany({
       where: { user_id: userId },
       include: {
-        produtos: true,
+        produtos: {
+          include: {
+            grupo_series: true
+          }
+        },
         grupos: {
           select: { nome: true }
         }
@@ -36,19 +40,24 @@ export async function GET() {
       }
     })
 
-    const formattedProducts = userSeries.map(us => ({
-      vinculo_id: us.id,
-      produto_id: us.produto_id,
-      nome: us.produtos.nome,
-      plataforma: us.produtos.plataforma,
-      imagem_url: us.produtos.imagem_url,
-      link_serie: us.produtos.link_serie,
-      descricao: us.produtos.descricao,
-      preco: us.preco,
-      ativo: us.ativo,
-      grupo_nome: us.grupos?.nome || "Sem Grupo",
-      grupo_id: us.grupo_id
-    }))
+    const formattedProducts = userSeries.map(us => {
+      // Busca o preço unificado do grupo para este produto
+      const grupoPreco = us.produtos.grupo_series.find(gs => gs.grupo_id === us.grupo_id);
+      
+      return {
+        vinculo_id: us.id,
+        produto_id: us.produto_id,
+        nome: us.produtos.nome,
+        plataforma: us.produtos.plataforma,
+        imagem_url: us.produtos.imagem_url,
+        link_serie: us.produtos.link_serie,
+        descricao: us.produtos.descricao,
+        preco: grupoPreco?.preco || 0,
+        ativo: us.ativo,
+        grupo_nome: us.grupos?.nome || "Sem Grupo",
+        grupo_id: us.grupo_id
+      }
+    })
 
     return NextResponse.json(formattedProducts)
   } catch (error) {
@@ -154,7 +163,6 @@ export async function POST(request: Request) {
         vinculo = await tx.user_series.update({
           where: { id: body.id, user_id: userId },
           data: {
-            preco: data.preco,
             ativo: data.ativo,
             grupo_id: data.grupo_id,
             updated_at: new Date(),
@@ -170,7 +178,6 @@ export async function POST(request: Request) {
             }
           },
           update: {
-            preco: data.preco,
             ativo: data.ativo,
             updated_at: new Date(),
           },
@@ -178,11 +185,30 @@ export async function POST(request: Request) {
             user_id: userId,
             produto_id: produto.id,
             grupo_id: data.grupo_id,
-            preco: data.preco,
             ativo: data.ativo,
           }
         });
       }
+
+      // 3. UPSERT do Preço do Grupo (UNIFICAÇÃO)
+      await tx.grupo_series.upsert({
+        where: {
+          grupo_id_produto_id: {
+            grupo_id: data.grupo_id,
+            produto_id: produto.id
+          }
+        },
+        update: {
+          preco: data.preco,
+          updated_at: new Date(),
+        },
+        create: {
+          grupo_id: data.grupo_id,
+          produto_id: produto.id,
+          preco: data.preco,
+        }
+      });
+
       return vinculo;
     });
 

@@ -45,6 +45,7 @@ model grupos {
   grupo_monthly_payment grupo_monthly_payment[]
   users                 users                   @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   user_series           user_series[]
+  grupo_series          grupo_series[]
   vendas                vendas[]
   vendor_monthly_status vendor_monthly_status[]
   vendor_status         vendor_status[]
@@ -61,7 +62,22 @@ model produtos {
   updated_at       DateTime?     @default(now()) @db.Timestamptz(6)
   nome_alternativo String?
   user_series      user_series[]
+  grupo_series     grupo_series[]
   vendas           vendas[]
+}
+
+
+model grupo_series {
+  id         String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  produto_id String    @db.Uuid
+  grupo_id   String    @db.Uuid
+  preco      Decimal   @default(0.00) @db.Decimal(10, 2)
+  created_at DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at DateTime? @default(now()) @db.Timestamptz(6)
+  grupos     grupos    @relation(fields: [grupo_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  produtos   produtos  @relation(fields: [produto_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([grupo_id, produto_id])
 }
 
 model user_series {
@@ -69,7 +85,6 @@ model user_series {
   user_id    String    @db.Uuid
   produto_id String    @db.Uuid
   grupo_id   String    @db.Uuid
-  preco      Decimal   @default(0.00) @db.Decimal(10, 2)
   ativo      Boolean?  @default(true)
   created_at DateTime? @default(now()) @db.Timestamptz(6)
   updated_at DateTime? @default(now()) @db.Timestamptz(6)

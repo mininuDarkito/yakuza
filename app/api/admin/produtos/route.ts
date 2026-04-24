@@ -35,11 +35,12 @@ export async function GET(request: Request) {
           SELECT json_agg(json_build_object(
             'vendedor', u.discord_username,
             'grupo', g.nome,
-            'preco', us.preco
+            'preco', gs.preco
           ))
           FROM user_series us
           JOIN users u ON u.id = us.user_id
           JOIN grupos g ON g.id = us.grupo_id
+          JOIN grupo_series gs ON gs.produto_id = us.produto_id AND gs.grupo_id = us.grupo_id
           WHERE us.produto_id = p.id
         ) as detalhe_vendedores
       FROM produtos p
