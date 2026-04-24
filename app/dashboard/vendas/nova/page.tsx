@@ -39,10 +39,10 @@ export default async function NovaVendaPage(props: {
       
       if (grupoPadrao) {
         await sql.query(`
-          INSERT INTO user_series (user_id, produto_id, grupo_id, preco, ativo, created_at)
-          VALUES ($1, $2, $3, $4, true, NOW())
+          INSERT INTO user_series (user_id, produto_id, grupo_id, ativo, created_at)
+          VALUES ($1, $2, $3, true, NOW())
           ON CONFLICT (user_id, produto_id, grupo_id) DO NOTHING
-        `, [userId, produto_id, grupoPadrao, 1.00])
+        `, [userId, produto_id, grupoPadrao])
 
         // Garante que o grupo tenha um preço base definido
         await sql.query(`
@@ -71,12 +71,12 @@ export default async function NovaVendaPage(props: {
         p.nome_alternativo,
         p.imagem_url, 
         p.descricao,
-        COALESCE(gs.preco, us.preco) as preco, 
+        gs.preco, 
         us.grupo_id,
         p.plataforma
       FROM produtos p
       INNER JOIN user_series us ON p.id = us.produto_id
-      LEFT JOIN grupo_series gs ON p.id = gs.produto_id AND us.grupo_id = gs.grupo_id
+      INNER JOIN grupo_series gs ON p.id = gs.produto_id AND us.grupo_id = gs.grupo_id
       WHERE us.user_id = $1 AND us.ativo = true
       ORDER BY p.nome
     `, [userId]),

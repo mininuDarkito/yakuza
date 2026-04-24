@@ -93,6 +93,8 @@ export async function POST(request: Request) {
       });
 
       return resultados.length;
+    }, {
+        timeout: 30000 // 30 segundos de tolerância para lotes grandes
     });
 
     return NextResponse.json({ 

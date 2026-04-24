@@ -12,7 +12,7 @@ interface Venda {
   produto_nome: string
   imagem_url?: string | null 
   grupo_nome: string
-  quantidade: number 
+  capitulo: number 
   preco_total: string | number
   created_at: string
 }
@@ -55,7 +55,7 @@ export function RecentSales({ vendas }: { vendas: Venda[] }) {
               {venda.produto_nome}
             </Link>
             <p className="text-xs text-muted-foreground truncate">
-              {venda.grupo_nome} • <span className="font-semibold text-primary">Cap. {venda.quantidade}</span>
+              {venda.grupo_nome} • <span className="font-semibold text-primary">Cap. {venda.capitulo}</span>
             </p>
           </div>
 

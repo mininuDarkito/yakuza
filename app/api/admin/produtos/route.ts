@@ -1,6 +1,7 @@
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/db"
+import { Prisma } from "@prisma/client"
 import { NextResponse } from "next/server"
 import { resolveMetadata } from "@/lib/scrapers"
 
@@ -45,7 +46,7 @@ export async function GET(request: Request) {
         ) as detalhe_vendedores
       FROM produtos p
       WHERE (p.nome ILIKE ${searchPattern} OR p.nome_alternativo ILIKE ${searchPattern} OR p.descricao ILIKE ${searchPattern})
-      ${plataforma !== "todos" ? prisma.$queryRaw`AND p.plataforma = ${plataforma}` : prisma.$queryRaw``}
+      ${plataforma !== "todos" ? Prisma.sql`AND p.plataforma = ${plataforma}` : Prisma.empty}
       ORDER BY p.created_at DESC
       LIMIT ${limit} OFFSET ${offset}
     `;
@@ -54,7 +55,7 @@ export async function GET(request: Request) {
     const countRes: any[] = await prisma.$queryRaw`
         SELECT COUNT(*)::int FROM produtos 
         WHERE (nome ILIKE ${searchPattern} OR nome_alternativo ILIKE ${searchPattern} OR descricao ILIKE ${searchPattern})
-        ${plataforma !== "todos" ? prisma.$queryRaw`AND plataforma = ${plataforma}` : prisma.$queryRaw``}
+        ${plataforma !== "todos" ? Prisma.sql`AND plataforma = ${plataforma}` : Prisma.empty}
     `;
 
     const totalItems = countRes[0].count;

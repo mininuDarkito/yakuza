@@ -51,7 +51,7 @@ export async function POST(request: Request) {
                         user_id, 
                         produto_id, 
                         grupo_id,
-                        quantidade,      
+                        capitulo,      
                         preco_unitario, 
                         preco_total,     
                         data_venda, 

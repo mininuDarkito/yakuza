@@ -151,7 +151,7 @@ export function VendasList({ userId: initialUserId }: { userId: string, initialM
     if (venda.lock_user || venda.lock_admin) return toast.error("Registro trancado.")
     if (!confirm("Excluir este capítulo?")) return
     try {
-      const res = await fetch(`/api/user/vendas/delete?id=${venda.id}`, { method: "DELETE" })
+      const res = await fetch(`/api/vendas/${venda.id}`, { method: "DELETE" })
       if (!res.ok) throw new Error()
       toast.success("Removido")
       setVendas(prev => prev.filter(v => v.id !== venda.id))

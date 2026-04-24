@@ -46,6 +46,10 @@ export default async function DashboardPage() {
   // Formatação dos dados recentes para manter compatibilidade com o componente RecentSales
   const recentVendas = recentVendasRaw.map(v => ({
     ...v,
+    capitulo: Number(v.capitulo),
+    preco_unitario: Number(v.preco_unitario),
+    preco_total: Number(v.preco_total),
+    created_at: v.created_at ? v.created_at.toISOString() : new Date().toISOString(),
     produto_nome: v.produtos.nome,
     imagem_url: v.produtos.imagem_url,
     grupo_nome: v.grupos?.nome || "Sem Grupo"

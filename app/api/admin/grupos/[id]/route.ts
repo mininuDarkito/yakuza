@@ -96,7 +96,7 @@ export async function GET(
               SELECT
                 v.id,
                 v.data_venda as data,
-                v.quantidade,
+                v.capitulo,
                 v.preco_unitario as valor_unitario
               FROM vendas v
               WHERE v.user_id = $1 
@@ -116,7 +116,7 @@ export async function GET(
               transacoes: transacoesRes.rows.map((t) => ({
                 id: t.id,
                 data: t.data,
-                quantidade: parseFloat(t.quantidade) || 0,
+                quantidade: parseFloat(t.capitulo) || 0,
                 valorUnitario: parseFloat(t.valor_unitario) || 0,
               })),
             }

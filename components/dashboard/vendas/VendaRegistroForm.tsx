@@ -144,7 +144,7 @@ export function VendaRegistroForm({ grupos, obrasVinculadas }: any) {
                       <div className="absolute z-50 w-full mt-2 bg-popover border border-border rounded-xl shadow-xl max-h-48 overflow-y-auto">
                         {obrasFiltradas.map((o: any) => (
                           <button
-                            key={o.id}
+                            key={o.vinculo_id}
                             type="button"
                             onClick={() => selecionarObra(o)}
                             className="w-full text-left p-3 hover:bg-primary/10 font-bold text-xs uppercase italic transition-colors"

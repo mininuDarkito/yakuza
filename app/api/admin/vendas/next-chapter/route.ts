@@ -18,7 +18,7 @@ export async function GET(request: Request) {
 
     try {
         const res = await sql.query(`
-            SELECT MAX(quantidade) as max_cap 
+            SELECT MAX(capitulo) as max_cap 
             FROM vendas 
             WHERE produto_id = $1
         `, [produtoId]);
