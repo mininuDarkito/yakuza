@@ -79,7 +79,8 @@ export async function POST(request: Request) {
                 userId: user_id,
                 produtoId: produto_id,
                 grupoId: grupo_id,
-                capitulos: listaCapitulos
+                capitulos: listaCapitulos,
+                precoUnitario: valor
             });
             return NextResponse.json({ success: true, totalInserido: listaCapitulos.length });
 

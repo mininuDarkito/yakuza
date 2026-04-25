@@ -56,7 +56,8 @@ export async function POST(request: Request) {
             userId: user_id,
             produtoId: produto_id,
             grupoId: grupo_id,
-            capitulos: quantidade
+            capitulos: quantidade,
+            precoUnitario: preco_unitario
         });
 
         return NextResponse.json({ success: true, venda });

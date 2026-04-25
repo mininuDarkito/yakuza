@@ -7,6 +7,7 @@ export async function sendVendaLog(vendaData: {
   produtoId: string;
   grupoId: string;
   capitulos: string | number | number[];
+  precoUnitario: number;
 }) {
   const token = process.env.DISCORD_BOT_TOKEN;
   const channelId = logsConfig.logChannelId;
@@ -30,15 +31,22 @@ export async function sendVendaLog(vendaData: {
     }
 
     let capitulosTexto = "";
+    let count = 1;
     if (Array.isArray(vendaData.capitulos)) {
-        if (vendaData.capitulos.length > 10) {
-            capitulosTexto = `\`${vendaData.capitulos[0]} a ${vendaData.capitulos[vendaData.capitulos.length - 1]}\` (${vendaData.capitulos.length} caps)`;
+        count = vendaData.capitulos.length;
+        if (count > 10) {
+            capitulosTexto = `\`${vendaData.capitulos[0]} a ${vendaData.capitulos[vendaData.capitulos.length - 1]}\` (${count} caps)`;
         } else {
             capitulosTexto = vendaData.capitulos.map(c => `\`${c}\``).join(", ");
         }
     } else {
         capitulosTexto = `\`${vendaData.capitulos}\``;
     }
+
+    const total = (Number(vendaData.precoUnitario) || 0) * count;
+    const valorTexto = count > 1 
+        ? `$ ${vendaData.precoUnitario.toFixed(2)} x ${count} = **$ ${total.toFixed(2)}**`
+        : `**$ ${vendaData.precoUnitario.toFixed(2)}**`;
 
     const channelMention = grupo.channel_id ? `<#${grupo.channel_id}>` : "N/A";
 
@@ -51,6 +59,7 @@ export async function sendVendaLog(vendaData: {
         { name: "🌐 Canal", value: channelMention, inline: true },
         { name: "📖 Série", value: produto.nome, inline: true },
         { name: "📕 Capítulos", value: capitulosTexto, inline: true },
+        { name: "💰 Valor", value: valorTexto, inline: true },
       ],
       thumbnail: produto.imagem_url ? { url: produto.imagem_url } : undefined,
       timestamp: new Date().toISOString(),

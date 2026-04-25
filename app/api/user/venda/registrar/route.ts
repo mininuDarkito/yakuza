@@ -103,7 +103,8 @@ export async function POST(request: Request) {
       userId: userId,
       produtoId: data.obra_id,
       grupoId: data.grupo_id,
-      capitulos: listaCaps
+      capitulos: listaCaps,
+      precoUnitario: data.preco_unitario
     });
 
     return NextResponse.json({ 

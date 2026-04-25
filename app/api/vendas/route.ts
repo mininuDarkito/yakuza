@@ -167,7 +167,8 @@ export async function POST(request: Request) {
       userId: userId,
       produtoId: data.produto_id,
       grupoId: data.grupo_id,
-      capitulos: capsParaSalvar
+      capitulos: capsParaSalvar,
+      precoUnitario: precoUnitario
     })
 
     return NextResponse.json({ 
