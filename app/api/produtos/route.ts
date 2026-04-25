@@ -1,6 +1,7 @@
 import { getServerSession } from "next-auth"
 import { NextResponse } from "next/server"
 import { authOptions } from "@/lib/auth"
+import { uploadImage } from "@/lib/storage"
 import { prisma } from "@/lib/db"
 import { z } from "zod"
 
@@ -138,12 +139,15 @@ export async function POST(request: Request) {
     const data = produtoSchema.parse({ ...body, preco: cleanPreco });
 
     const result = await prisma.$transaction(async (tx) => {
+      // Garantir que a imagem vá para o Cloudinary se for Base64/Nova URL
+      const cloudinaryUrl = await uploadImage(data.imagem_url);
+
       // 1. UPSERT Global (Catálogo)
       const produto = await tx.produtos.upsert({
         where: { nome: data.nome.trim() },
         update: {
           descricao: data.descricao || undefined,
-          imagem_url: data.imagem_url || undefined,
+          imagem_url: cloudinaryUrl || undefined,
           link_serie: data.link_serie || undefined,
           plataforma: data.plataforma || undefined,
           updated_at: new Date(),
@@ -151,7 +155,7 @@ export async function POST(request: Request) {
         create: {
           nome: data.nome.trim(),
           descricao: data.descricao || "",
-          imagem_url: data.imagem_url || "",
+          imagem_url: cloudinaryUrl || "",
           link_serie: data.link_serie || "",
           plataforma: data.plataforma || 'auto',
         }

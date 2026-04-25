@@ -57,7 +57,8 @@ export async function POST(request: Request) {
             produtoId: produto_id,
             grupoId: grupo_id,
             capitulos: quantidade,
-            precoUnitario: preco_unitario
+            precoUnitario: preco_unitario,
+            dataVenda: data_venda
         });
 
         return NextResponse.json({ success: true, venda });

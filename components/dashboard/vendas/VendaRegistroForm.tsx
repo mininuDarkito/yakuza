@@ -29,7 +29,7 @@ const vendaSchema = z.object({
 
 type VendaFormData = z.infer<typeof vendaSchema>
 
-export function VendaRegistroForm({ grupos, obrasVinculadas }: any) {
+export function VendaRegistroForm({ grupos, obrasVinculadas, initialProdutoId }: any) {
   const router = useRouter()
   const [selectedObra, setSelectedObra] = useState<any>(null)
   const [showGaleria, setShowGaleria] = useState(false)
@@ -47,6 +47,16 @@ export function VendaRegistroForm({ grupos, obrasVinculadas }: any) {
       obs: ""
     }
   })
+
+  // Efeito para auto-completar se vier produto_id via URL
+  useEffect(() => {
+    if (initialProdutoId && obrasVinculadas.length > 0) {
+      const obra = obrasVinculadas.find((o: any) => o.produto_id === initialProdutoId);
+      if (obra) {
+        selecionarObra(obra);
+      }
+    }
+  }, [initialProdutoId, obrasVinculadas]);
 
   // Filtro de pesquisa rápida local (obras que o usuário já tem)
   const obrasFiltradas = useMemo(() => {
@@ -92,7 +102,7 @@ export function VendaRegistroForm({ grupos, obrasVinculadas }: any) {
       if (!response.ok) throw new Error(result.error || "Erro ao registrar")
 
       toast.success(`${result.count} capítulos registrados na Yakuza!`)
-      
+
       form.reset({
         ...data,
         capitulos: "",
@@ -134,9 +144,9 @@ export function VendaRegistroForm({ grupos, obrasVinculadas }: any) {
                 <div className="flex gap-2">
                   <div className="relative flex-1">
                     <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input 
-                      placeholder="PESQUISAR MINHAS SÉRIES..." 
-                      className="pl-10 h-12 rounded-xl bg-muted/20 border-border font-bold italic uppercase" 
+                    <Input
+                      placeholder="PESQUISAR MINHAS SÉRIES..."
+                      className="pl-10 h-12 rounded-xl bg-muted/20 border-border font-bold italic uppercase"
                       value={quickSearch}
                       onChange={(e) => setQuickSearch(e.target.value)}
                     />

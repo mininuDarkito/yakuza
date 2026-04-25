@@ -80,7 +80,8 @@ export async function POST(request: Request) {
                 produtoId: produto_id,
                 grupoId: grupo_id,
                 capitulos: listaCapitulos,
-                precoUnitario: valor
+                precoUnitario: valor,
+                dataVenda: dataVenda
             });
             return NextResponse.json({ success: true, totalInserido: listaCapitulos.length });
 

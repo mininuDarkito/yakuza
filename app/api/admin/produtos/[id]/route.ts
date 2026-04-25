@@ -1,6 +1,7 @@
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/db"
+import { uploadImage } from "@/lib/storage"
 import { NextResponse } from "next/server"
 
 // --- ATUALIZAR PRODUTO (PATCH) ---
@@ -19,6 +20,8 @@ export async function PATCH(
     const body = await request.json()
     const { nome, nome_alternativo, link_serie, plataforma, imagem_url } = body
 
+    const cloudinaryUrl = await uploadImage(imagem_url);
+
     const produto = await prisma.produtos.update({
       where: { id },
       data: {
@@ -26,7 +29,7 @@ export async function PATCH(
         nome_alternativo,
         link_serie,
         plataforma,
-        imagem_url,
+        imagem_url: cloudinaryUrl,
         updated_at: new Date()
       }
     });

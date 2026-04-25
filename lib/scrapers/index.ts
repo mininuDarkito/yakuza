@@ -25,6 +25,9 @@ import { scrape as scrapeComicfest } from "./plataforms/comicfest";
 import { scrape as scrapeBookwalker } from "./plataforms/bookwalker";
 import { scrape as scrapeEbookjapan } from "./plataforms/ebookjapan";
 import { scrape as scrapeCmoa } from "./plataforms/cmoa";
+import { scrape as scrapeMangaline } from "./plataforms/mangaline";
+import { scrape as scrapeLezhin } from "./plataforms/lezhin";
+import { scrape as scrapeWebtoon } from "./plataforms/webtoon";
 
 // 3. A Função Resolver (O Cérebro agora mora aqui)
 export async function resolveMetadata(url: string): Promise<ScrapeResult> {
@@ -45,6 +48,9 @@ export async function resolveMetadata(url: string): Promise<ScrapeResult> {
   else if (url.includes("ebookjapan.yahoo.co.jp"))
     result = await scrapeEbookjapan(url);
   else if (url.includes("cmoa.jp")) result = await scrapeCmoa(url);
+  else if (url.includes("manga.line.me")) result = await scrapeMangaline(url);
+  else if (url.includes("lezhin.com")) result = await scrapeLezhin(url);
+  else if (url.includes("webtoons.com")) result = await scrapeWebtoon(url);
   else throw new Error("Plataforma não suportada ou link inválido.");
 
   // Centraliza o upload de imagem aqui para evitar Base64 no banco de dados
