@@ -20,6 +20,7 @@ FROM node:22-slim AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
+ENV TZ=America/Sao_Paulo
 
 # Copia apenas o necessário para rodar (Standalone do Next.js se configurado, ou build padrão)
 # Para standalone precisaria de config extra no next.config.js, vamos usar o padrão por enquanto mas limpando node_modules

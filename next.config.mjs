@@ -1,3 +1,5 @@
+process.env.TZ = 'America/Sao_Paulo';
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'standalone',

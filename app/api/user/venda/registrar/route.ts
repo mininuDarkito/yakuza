@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { z } from "zod";
+import { sendVendaLog } from "@/lib/discord-logger";
 
 const registroSchema = z.object({
   obra_id: z.string().uuid(),
@@ -95,6 +96,14 @@ export async function POST(request: Request) {
       return resultados.length;
     }, {
         timeout: 30000 // 30 segundos de tolerância para lotes grandes
+    });
+    
+    // Log no Discord
+    await sendVendaLog({
+      userId: userId,
+      produtoId: data.obra_id,
+      grupoId: data.grupo_id,
+      capitulos: listaCaps
     });
 
     return NextResponse.json({ 

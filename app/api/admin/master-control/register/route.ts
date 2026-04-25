@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { sql } from "@/lib/db";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { sendVendaLog } from "@/lib/discord-logger";
 
 function explodeCapitulos(input: string): number[] {
     const limpo = input.replace(/\s+/g, '');
@@ -72,6 +73,14 @@ export async function POST(request: Request) {
             }
 
             await sql.query('COMMIT');
+            
+            // Log no Discord
+            await sendVendaLog({
+                userId: user_id,
+                produtoId: produto_id,
+                grupoId: grupo_id,
+                capitulos: listaCapitulos
+            });
             return NextResponse.json({ success: true, totalInserido: listaCapitulos.length });
 
         } catch (innerError: any) {

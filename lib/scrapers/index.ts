@@ -17,13 +17,14 @@ import { scrape as scrapeKkmh } from "./plataforms/kuaikan";
 import { scrape as scrapeManta } from "./plataforms/manta";
 import { scrape as scrapeMecha } from "./plataforms/mechacomic";
 import { scrape as scrapeRidi } from "./plataforms/ridi-books";
-import { scrape as scrapeBilibili }  from "./plataforms/piccoma";
+import { scrape as scrapeBilibili } from "./plataforms/piccoma";
 import { scrape as scrapeHonto } from "./plataforms/honto";
 import { scrape as scrapeComico } from "./plataforms/comico";
 import { scrape as scrapeJump } from "./plataforms/jump";
 import { scrape as scrapeComicfest } from "./plataforms/comicfest";
 import { scrape as scrapeBookwalker } from "./plataforms/bookwalker";
 import { scrape as scrapeEbookjapan } from "./plataforms/ebookjapan";
+import { scrape as scrapeCmoa } from "./plataforms/cmoa";
 
 // 3. A Função Resolver (O Cérebro agora mora aqui)
 export async function resolveMetadata(url: string): Promise<ScrapeResult> {
@@ -41,7 +42,9 @@ export async function resolveMetadata(url: string): Promise<ScrapeResult> {
   else if (url.includes("jumptoon.com")) result = await scrapeJump(url);
   else if (url.includes("comic.iowl.jp")) result = await scrapeComicfest(url);
   else if (url.includes("bookwalker.jp")) result = await scrapeBookwalker(url);
-  else if (url.includes("ebookjapan.yahoo.co.jp")) result = await scrapeEbookjapan(url);
+  else if (url.includes("ebookjapan.yahoo.co.jp"))
+    result = await scrapeEbookjapan(url);
+  else if (url.includes("cmoa.jp")) result = await scrapeCmoa(url);
   else throw new Error("Plataforma não suportada ou link inválido.");
 
   // Centraliza o upload de imagem aqui para evitar Base64 no banco de dados

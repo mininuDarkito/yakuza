@@ -3,6 +3,7 @@ import { NextResponse } from "next/server"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/db"
 import { z } from "zod"
+import { sendVendaLog } from "@/lib/discord-logger"
 
 const vendaSchema = z.object({
   produto_id: z.string().uuid("Série inválida"),
@@ -159,6 +160,14 @@ export async function POST(request: Request) {
       })
 
       return vendasRegistradas
+    })
+    
+    // Log no Discord
+    await sendVendaLog({
+      userId: userId,
+      produtoId: data.produto_id,
+      grupoId: data.grupo_id,
+      capitulos: capsParaSalvar
     })
 
     return NextResponse.json({ 

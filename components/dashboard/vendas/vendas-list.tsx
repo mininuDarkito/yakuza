@@ -299,7 +299,7 @@ export function VendasList({ userId: initialUserId }: { userId: string, initialM
                       return (
                         <tr key={venda.id} className={cn("transition-colors", isLocked ? "opacity-30" : "hover:bg-white/[0.03]")}>
                           <td className="px-6 py-4 text-[11px] font-bold text-zinc-300 italic uppercase">
-                            {venda.data_venda ? format(new Date(venda.data_venda), "dd/MM/yy") : "--/--/--"}
+                            {venda.data_venda ? new Date(venda.data_venda).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', timeZone: 'UTC' }) : "--/--/--"}
                           </td>
                           <td className="px-6 py-4">
                             <span className="text-[10px] font-black uppercase text-zinc-400 italic">

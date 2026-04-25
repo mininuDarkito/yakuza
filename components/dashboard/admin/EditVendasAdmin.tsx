@@ -395,13 +395,13 @@ export function EditVendasAdmin({ usuarios, grupos: gruposIniciais = [] }: EditV
                                                 <span className="font-black text-zinc-100 italic text-xl">#{v.quantidade}</span>
                                             )}
                                         </td>
-                                        <td className="p-4 text-[10px] font-bold text-zinc-500 uppercase italic">
-                                            {editingId === v.id ? (
-                                                <Input type="date" className="h-7 w-32 bg-zinc-900 text-[10px] border-white/10" value={editForm.data_venda} onChange={e => setEditForm({ ...editForm, data_venda: e.target.value })} />
-                                            ) : (
-                                                new Date(v.data_venda).toLocaleDateString('pt-BR')
-                                            )}
-                                        </td>
+                                         <td className="p-4 text-[10px] font-bold text-zinc-500 uppercase italic">
+                                             {editingId === v.id ? (
+                                                 <Input type="date" className="h-7 w-32 bg-zinc-900 text-[10px] border-white/10" value={editForm.data_venda} onChange={e => setEditForm({ ...editForm, data_venda: e.target.value })} />
+                                             ) : (
+                                                 new Date(v.data_venda).toLocaleDateString('pt-BR', { timeZone: 'UTC' })
+                                             )}
+                                         </td>
                                         <td className="p-4 text-right">
                                             {v.lock_admin ? (
                                                 <div className="flex justify-end items-center text-zinc-600 italic font-black text-[9px]">
