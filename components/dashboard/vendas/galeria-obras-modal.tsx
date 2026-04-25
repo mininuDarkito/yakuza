@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef, useCallback } from "react"
-import { Dialog, DialogPortal, DialogOverlay, DialogContent } from "@/components/ui/dialog"
+import { Dialog, DialogPortal, DialogOverlay, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -18,7 +18,7 @@ export function GaleriaObrasModal({ isOpen, onClose, onSelect }: any) {
   const [listaPlataformas, setListaPlataformas] = useState<string[]>([])
   const [page, setPage] = useState(1)
   const [hasMore, setHasMore] = useState(true)
-  const observer = useRef<IntersectionObserver | null>(null)
+  const [totalItems, setTotalItems] = useState(0)
 
   useEffect(() => {
     if (isOpen) {
@@ -28,43 +28,35 @@ export function GaleriaObrasModal({ isOpen, onClose, onSelect }: any) {
     }
   }, [isOpen])
 
+  // Resetar página ao trocar filtros
+  useEffect(() => {
+    setPage(1);
+  }, [search, plataforma]);
+
   const loadObras = useCallback(async (isFirstLoad: boolean = false) => {
     const currentPage = isFirstLoad ? 1 : page
-    if (isFirstLoad) { setLoading(true); setObras([]); }
-    else { setLoadingMore(true); }
+    setLoading(true)
 
     try {
       const platQuery = plataforma !== "TODAS" ? `&plataforma=${encodeURIComponent(plataforma)}` : ""
-      const res = await fetch(`/api/user/catalogo/galeria?search=${encodeURIComponent(search)}${platQuery}&page=${currentPage}&limit=30`)
+      const limit = 20
+      const res = await fetch(`/api/user/catalogo/galeria?search=${encodeURIComponent(search)}${platQuery}&page=${currentPage}&limit=${limit}`)
       const data = await res.json()
 
-      if (isFirstLoad) setObras(data)
-      else setObras(prev => [...prev, ...data])
-
-      setHasMore(data.length === 30)
+      setObras(data)
+      const total = data.length > 0 ? parseInt(data[0].total_count) : 0
+      setTotalItems(total)
+      setHasMore(total > currentPage * limit)
     } catch (error) {
       console.error(error)
     } finally {
-      setLoading(false); setLoadingMore(false);
+      setLoading(false);
     }
   }, [search, plataforma, page])
 
   useEffect(() => {
-    if (isOpen) { setPage(1); loadObras(true); }
-  }, [search, plataforma, isOpen])
-
-  useEffect(() => {
-    if (page > 1 && !loading) loadObras(false)
-  }, [page])
-
-  const lastElementRef = useCallback((node: any) => {
-    if (loading || loadingMore) return
-    if (observer.current) observer.current.disconnect()
-    observer.current = new IntersectionObserver(entries => {
-      if (entries[0].isIntersecting && hasMore) setPage(prev => prev + 1)
-    })
-    if (node) observer.current.observe(node)
-  }, [loading, loadingMore, hasMore])
+    if (isOpen) loadObras()
+  }, [page, isOpen, search, plataforma])
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -84,10 +76,12 @@ export function GaleriaObrasModal({ isOpen, onClose, onSelect }: any) {
                   <BookImage className="h-8 w-8 text-primary" />
                 </div>
                 <div>
-                  <h2 className="text-3xl font-black italic uppercase tracking-tighter text-foreground leading-none">
+                  <DialogTitle className="text-3xl font-black italic uppercase tracking-tighter text-foreground leading-none">
                     GALERIA <span className="text-primary">DE OBRAS</span>
-                  </h2>
-                  <p className="mt-1 text-[10px] font-bold uppercase italic tracking-[0.2em] text-muted-foreground">Yakuza Raws • Acervo Global</p>
+                  </DialogTitle>
+                  <DialogDescription className="mt-1 text-[10px] font-bold uppercase italic tracking-[0.2em] text-muted-foreground">
+                    Yakuza Raws • Acervo Global
+                  </DialogDescription>
                 </div>
               </div>
 
@@ -142,7 +136,7 @@ export function GaleriaObrasModal({ isOpen, onClose, onSelect }: any) {
                   <p className="text-[10px] font-black uppercase italic tracking-[0.3em] text-muted-foreground animate-pulse">Sincronizando Banco de Dados...</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-2 gap-8 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 md:gap-12">
+                <div className="grid grid-cols-2 gap-8 md:grid-cols-4 md:gap-12">
                   {obras.map((obra, index) => (
                     <div
                       key={`${obra.id}-${index}`}
@@ -175,27 +169,44 @@ export function GaleriaObrasModal({ isOpen, onClose, onSelect }: any) {
                       </p>
                     </div>
                   ))}
-
-                  {/* SENTINELA DE SCROLL */}
-                  <div ref={lastElementRef} className="col-span-full flex h-32 items-center justify-center">
-                    {loadingMore && (
-                      <div className="flex items-center gap-3">
-                        <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                        <span className="text-[10px] font-black italic text-muted-foreground uppercase tracking-widest">Carregando Acervo...</span>
-                      </div>
-                    )}
-                  </div>
                 </div>
               )}
             </div>
           </div>
 
-          {/* RODAPÉ FIXO */}
+          {/* RODAPÉ FIXO COM PAGINAÇÃO */}
           <div className="flex shrink-0 items-center justify-between border-t border-border bg-card px-10 py-5">
-            <div className="flex items-center gap-3 text-[10px] font-black italic uppercase text-muted-foreground tracking-widest">
-              <Layers className="h-4 w-4 text-primary" />
-              <span>Registros: {obras.length} obras carregadas</span>
+            <div className="flex items-center gap-6">
+              <div className="flex items-center gap-3 text-[10px] font-black italic uppercase text-muted-foreground tracking-widest">
+                <Layers className="h-4 w-4 text-primary" />
+                <span>Registros: {totalItems} obras no total</span>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  disabled={page === 1 || loading}
+                  onClick={() => setPage(p => p - 1)}
+                  className="h-8 rounded-lg border-border bg-background px-3 font-black italic uppercase text-[9px] hover:text-primary"
+                >
+                  Anterior
+                </Button>
+                <div className="flex h-8 items-center justify-center rounded-lg bg-primary/10 px-4 text-[10px] font-black italic text-primary">
+                  PÁGINA {page}
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  disabled={!hasMore || loading}
+                  onClick={() => setPage(p => p + 1)}
+                  className="h-8 rounded-lg border-border bg-background px-3 font-black italic uppercase text-[9px] hover:text-primary"
+                >
+                  Próxima
+                </Button>
+              </div>
             </div>
+
             <Button variant="ghost" onClick={onClose} className="text-[10px] font-black italic uppercase text-muted-foreground hover:text-primary transition-colors">
               Fechar Galeria
             </Button>

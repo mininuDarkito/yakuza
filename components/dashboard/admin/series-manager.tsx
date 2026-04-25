@@ -50,7 +50,8 @@ export function SeriesManager() {
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [editingItem, setEditingItem] = useState<Produto | null>(null)
   const [isSaving, setIsSaving] = useState(false)
-  const [isDeleting, setIsDeleting] = useState<string | null>(null) // Estado adicionado
+  const [isDeleting, setIsDeleting] = useState<string | null>(null)
+  const [mergeCandidate, setMergeCandidate] = useState<{ sourceId: string, targetName: string } | null>(null)
 
   const fetchSeries = async () => {
     setLoading(true)
@@ -81,14 +82,51 @@ export function SeriesManager() {
     try {
       const res = await fetch(`/api/admin/produtos/${editingItem.id}`, {
         method: "PATCH",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(editingItem)
       })
-      if (!res.ok) throw new Error()
+      
+      const data = await res.json()
+      
+      if (!res.ok) {
+        if (res.status === 400 && data.error?.includes("já está sendo usado")) {
+          setMergeCandidate({ sourceId: editingItem.id, targetName: editingItem.nome })
+          return
+        }
+        throw new Error(data.error || "Erro ao salvar")
+      }
+
       toast.success("Catálogo atualizado com sucesso")
       setEditingItem(null)
       fetchSeries()
-    } catch {
-      toast.error("Erro ao salvar alterações")
+    } catch (error: any) {
+      toast.error(error.message || "Erro ao salvar alterações")
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleMerge = async () => {
+    if (!mergeCandidate) return
+    setIsSaving(true)
+    try {
+      const res = await fetch("/api/admin/produtos/merge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(mergeCandidate)
+      })
+      
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || "Erro na fusão")
+      }
+
+      toast.success("Obras unificadas com sucesso!")
+      setMergeCandidate(null)
+      setEditingItem(null)
+      fetchSeries()
+    } catch (error: any) {
+      toast.error(error.message)
     } finally {
       setIsSaving(false)
     }
@@ -357,6 +395,31 @@ export function SeriesManager() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {/* MODAL DE FUSÃO (MERGE) */}
+      <AlertDialog open={!!mergeCandidate} onOpenChange={() => setMergeCandidate(null)}>
+        <AlertDialogContent className="bg-zinc-950 border-2 border-primary/50">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-xl font-black uppercase regular text-primary flex items-center gap-2">
+              <RefreshCcw className="h-5 w-5" /> Unificar Obras
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-zinc-400 font-bold uppercase text-[10px] leading-relaxed">
+              O nome <span className="text-white">"{mergeCandidate?.targetName}"</span> já existe no catálogo. 
+              Deseja <span className="text-primary">FUNDIR</span> esta série com a existente? 
+              <br /><br />
+              Isso moverá todas as vendas, vendedores e configurações para a série principal e deletará este registro duplicado.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-zinc-900 border-none font-black uppercase regular text-[10px]">Cancelar</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleMerge}
+              className="bg-primary hover:bg-primary/80 font-black uppercase regular text-[10px]"
+            >
+              Sim, Unificar Registros
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

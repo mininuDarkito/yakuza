@@ -35,8 +35,16 @@ export async function PATCH(
     });
 
     return NextResponse.json(produto)
-  } catch (error) {
+  } catch (error: any) {
     console.error("❌ Erro ao atualizar produto:", error);
+
+    // Erro de duplicidade (Nome único)
+    if (error.code === 'P2002') {
+      return NextResponse.json({ 
+        error: "Este nome já está sendo usado por outra obra no catálogo global." 
+      }, { status: 400 })
+    }
+
     return NextResponse.json({ error: "Erro ao atualizar" }, { status: 500 })
   }
 }
