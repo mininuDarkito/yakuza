@@ -28,8 +28,8 @@ export async function PATCH(request: Request) {
                 UPDATE vendas 
                 SET lock_user = true 
                 WHERE user_id = $1 
-                AND EXTRACT(MONTH FROM data_venda) = $2 
-                AND EXTRACT(YEAR FROM data_venda) = $3
+                AND EXTRACT(MONTH FROM data_venda AT TIME ZONE 'UTC') = $2 
+                AND EXTRACT(YEAR FROM data_venda AT TIME ZONE 'UTC') = $3
             `;
         } else if (level === 2) {
             // Nível 2: Tranca Master (Sela para Admin também)
@@ -38,8 +38,8 @@ export async function PATCH(request: Request) {
                 UPDATE vendas 
                 SET lock_admin = true, lock_user = true 
                 WHERE user_id = $1 
-                AND EXTRACT(MONTH FROM data_venda) = $2 
-                AND EXTRACT(YEAR FROM data_venda) = $3
+                AND EXTRACT(MONTH FROM data_venda AT TIME ZONE 'UTC') = $2 
+                AND EXTRACT(YEAR FROM data_venda AT TIME ZONE 'UTC') = $3
             `;
         }
 

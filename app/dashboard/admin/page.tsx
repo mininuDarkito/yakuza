@@ -39,8 +39,8 @@ export default async function AdminPage() {
     // 2. Performance Mensal
     sql.query(`
       SELECT 
-        TO_CHAR(data_venda, 'MM') as mes_index,
-        TO_CHAR(data_venda, 'Mon') as mes_nome,
+        TO_CHAR(data_venda AT TIME ZONE 'UTC', 'MM') as mes_index,
+        TO_CHAR(data_venda AT TIME ZONE 'UTC', 'Mon') as mes_nome,
         SUM(preco_total) as total
       FROM vendas
       WHERE data_venda >= DATE_TRUNC('year', CURRENT_DATE)

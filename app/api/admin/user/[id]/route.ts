@@ -47,12 +47,12 @@ export async function GET(
         // 2. CICLO DE PERFORMANCE (Mantido com queryRaw para facilitar o agrupamento por mês formatado)
         const monthlyPerformance = await prisma.$queryRaw`
             SELECT 
-                TO_CHAR(data_venda, 'MM') as mes_index,
-                TO_CHAR(data_venda, 'Mon') as mes_nome,
+                TO_CHAR(data_venda AT TIME ZONE 'UTC', 'MM') as mes_index,
+                TO_CHAR(data_venda AT TIME ZONE 'UTC', 'Mon') as mes_nome,
                 SUM(preco_total)::float as total
             FROM vendas
             WHERE user_id = ${userId}::uuid
-              AND EXTRACT(YEAR FROM data_venda) = ${parseInt(selectedYear)}
+              AND EXTRACT(YEAR FROM data_venda AT TIME ZONE 'UTC') = ${parseInt(selectedYear)}
             GROUP BY mes_index, mes_nome
             ORDER BY mes_index ASC
         `;

@@ -29,8 +29,8 @@ export async function GET(request: Request) {
                 ...(produtoId && produtoId !== "null" ? { produto_id: produtoId } : {}),
                 ...(mes && ano && mes !== "undefined" ? {
                     data_venda: {
-                        gte: new Date(parseInt(ano), parseInt(mes) - 1, 1),
-                        lt: new Date(parseInt(ano), parseInt(mes), 1),
+                        gte: new Date(Date.UTC(parseInt(ano), parseInt(mes) - 1, 1)),
+                        lt: new Date(Date.UTC(parseInt(ano), parseInt(mes), 1)),
                     }
                 } : {})
             },
