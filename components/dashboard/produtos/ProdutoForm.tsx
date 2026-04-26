@@ -21,7 +21,7 @@ export function ProdutoForm({ produto, grupos }: { produto?: any, grupos: any[] 
   const searchParams = useSearchParams()
   const [isLoading, setIsLoading] = useState(false)
   const [isFetching, setIsFetching] = useState(false)
-  const [obraData, setObraData] = useState<any>(null)
+  const [obraData, setObraData] = useState<any>(produto || null)
   
   const predefProdutoId = searchParams.get("produtoId")
 
@@ -41,8 +41,14 @@ export function ProdutoForm({ produto, grupos }: { produto?: any, grupos: any[] 
           setObraData(data)
         })
         .finally(() => setIsFetching(false))
+    } else if (produto) {
+      setObraData(produto)
+      form.reset({
+        grupo_id: produto.grupo_id || "",
+        preco: produto.preco ? String(produto.preco).replace(".", ",") : "",
+      })
     }
-  }, [predefProdutoId])
+  }, [predefProdutoId, produto])
 
   const onSubmit = async (data: any) => {
     setIsLoading(true)
@@ -60,13 +66,15 @@ export function ProdutoForm({ produto, grupos }: { produto?: any, grupos: any[] 
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          id: produto?.id, // ID do vínculo (user_series) para UPDATE
           grupo_id: data.grupo_id,
           preco: precoNumber,
           produto_id: predefProdutoId || produto?.produto_id,
-          nome: obraData?.nome, // Dados que vieram do fetch
+          nome: obraData?.nome,
           imagem_url: obraData?.imagem_url,
           plataforma: obraData?.plataforma,
-          link_serie: obraData?.link_serie
+          link_serie: obraData?.link_serie,
+          descricao: obraData?.descricao
         }),
       })
       if (!response.ok) {
