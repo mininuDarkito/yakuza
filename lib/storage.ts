@@ -12,7 +12,7 @@ if (process.env.CLOUDINARY_URL) {
  * Faz o upload de uma imagem (URL ou Base64) para o Cloudinary.
  * Se as credenciais não estiverem configuradas, retorna a URL/Base64 original.
  */
-export async function uploadImage(imageSource: string | null): Promise<string | null> {
+export async function uploadImage(imageSource: string | null, publicId?: string): Promise<string | null> {
   if (!imageSource) return null;
 
   // Se não houver configuração do Cloudinary, mantém como está (Base64 ou URL original)
@@ -21,11 +21,22 @@ export async function uploadImage(imageSource: string | null): Promise<string | 
     return imageSource;
   }
 
+  // Se já for uma imagem do Cloudinary, não precisa re-upar
+  if (imageSource.includes('res.cloudinary.com')) {
+    return imageSource;
+  }
+
   try {
+    // Gerar um public_id limpo baseado no nome da obra, se fornecido
+    const cleanPublicId = publicId 
+      ? publicId.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '_')
+      : undefined;
+
     const uploadResponse = await cloudinary.uploader.upload(imageSource, {
-      folder: 'yakuza_catalog',
+      folder: 'yakuza/capas',
+      public_id: cleanPublicId,
+      overwrite: true,
       resource_type: 'image',
-      // Otimizações automáticas do Cloudinary
       transformation: [
         { width: 500, height: 750, crop: 'limit' },
         { quality: 'auto', fetch_format: 'auto' }

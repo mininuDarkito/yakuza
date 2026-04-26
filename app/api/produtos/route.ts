@@ -140,7 +140,8 @@ export async function POST(request: Request) {
 
     const result = await prisma.$transaction(async (tx) => {
       // Garantir que a imagem vá para o Cloudinary se for Base64/Nova URL
-      const cloudinaryUrl = await uploadImage(data.imagem_url);
+      // Usamos o nome da obra como ID público para evitar duplicatas no Cloudinary
+      const cloudinaryUrl = await uploadImage(data.imagem_url, data.nome);
 
       // 1. UPSERT Global (Catálogo)
       const produto = await tx.produtos.upsert({

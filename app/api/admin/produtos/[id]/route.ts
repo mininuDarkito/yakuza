@@ -20,7 +20,7 @@ export async function PATCH(
     const body = await request.json()
     const { nome, nome_alternativo, link_serie, plataforma, imagem_url } = body
 
-    const cloudinaryUrl = await uploadImage(imagem_url);
+    const cloudinaryUrl = await uploadImage(imagem_url, nome);
 
     const produto = await prisma.produtos.update({
       where: { id },
