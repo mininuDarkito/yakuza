@@ -87,7 +87,9 @@ export async function getSeriesInfo(url: string) {
         
         const chapterId = checkbox.val();
         const chNoText = item.find('.p-chapterList_no').text().replace(/\s+/g, ' ').trim().split(' ')[0] || '??';
-        const chNameText = item.find('.p-chapterList_name').text().replace(/\s+/g, ' ').trim() || '??';
+        const rawChNameText = item.find('.p-chapterList_name').text().replace(/\s+/g, ' ').trim() || '??';
+        // Remove parênteses com números no final, ex: "Capítulo(15)" -> "Capítulo"
+        const chNameText = rawChNameText.replace(/\s*\(\d+\)\s*$/, '').trim();
         
         const btnAreaText = item.find('.p-chapterList_btnArea').text().trim();
         let status = 'paid';

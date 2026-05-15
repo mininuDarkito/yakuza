@@ -165,10 +165,11 @@ async function processDownload(
       chapter.series.title.replace(/[<>:"/\\|?*\x00]/g, "").trim() ||
       "Sem_Titulo";
 
-    // Combina número e título, como no painel (ex: 003話 - 第3話)
+    // Combina número e título, limpando os parênteses do final (ex: (15) -> "")
     let fullChapterName = (chapter.chapter_number || "Cap").trim();
     if (chapter.chapter_title) {
-      fullChapterName = `${fullChapterName} - ${chapter.chapter_title.trim()}`;
+      const cleanTitle = chapter.chapter_title.replace(/\s*\(\d+\)\s*$/, "").trim();
+      fullChapterName = `${fullChapterName} - ${cleanTitle}`;
     }
     const chapterSafe = fullChapterName
       .replace(/:/g, "-")
