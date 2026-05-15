@@ -127,21 +127,21 @@ export class GoogleDriveUploader {
       requestBody: { role: 'reader', type: 'anyone' }
     });
 
-    for (const imgPath of imagePaths) {
+    // Upload paralelo de imagens
+    await Promise.all(imagePaths.map(async (imgPath) => {
       const fileName = path.basename(imgPath);
-      
       const fileMetadata = { name: fileName, parents: [chapterId] };
       const media = {
         mimeType: 'image/jpeg',
         body: fs.createReadStream(imgPath)
       };
 
-      await this.drive.files.create({
+      return this.drive.files.create({
         requestBody: fileMetadata,
         media: media,
         fields: 'id'
       });
-    }
+    }));
 
     const folderData = await this.drive.files.get({ fileId: chapterId, fields: 'webViewLink' });
     return folderData.data.webViewLink!;

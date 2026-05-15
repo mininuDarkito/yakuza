@@ -121,23 +121,24 @@ async function processDownload(
     const jsonData = result.jsonData;
     const cryptoKey = result.cryptoKey;
 
-    // 2. Baixar imagens e decriptar
-    const imageBuffers: Buffer[] = [];
-    for (const pageInfo of jsonData.pages || []) {
-      const imgKey = pageInfo.image;
-      if (!imgKey) continue;
+    // 2. Baixar imagens e decriptar (Paralelizado)
+    const imageBuffers: Buffer[] = await Promise.all(
+      (jsonData.pages || []).map(async (pageInfo: any) => {
+        const imgKey = pageInfo.image;
+        if (!imgKey) return null;
 
-      const imgOpts = jsonData.images[imgKey] || [];
-      const opt = imgOpts.find((o: any) => o.format === "webp") || imgOpts[0];
-      const imgUrl = jsonData.base_dir + opt.src;
+        const imgOpts = jsonData.images[imgKey] || [];
+        const opt = imgOpts.find((o: any) => o.format === "webp") || imgOpts[0];
+        const imgUrl = jsonData.base_dir + opt.src;
 
-      const resp = await fetch(imgUrl);
-      if (resp.ok) {
-        const encData = Buffer.from(await resp.arrayBuffer());
-        const decrypted = CryptoProcessor.decryptMechaComic(encData, cryptoKey);
-        imageBuffers.push(decrypted);
-      }
-    }
+        const resp = await fetch(imgUrl);
+        if (resp.ok) {
+          const encData = Buffer.from(await resp.arrayBuffer());
+          return CryptoProcessor.decryptMechaComic(encData, cryptoKey);
+        }
+        return null;
+      }),
+    ).then((results) => results.filter((b): b is Buffer => b !== null));
 
     if (imageBuffers.length === 0) {
       throw new Error("Nenhuma imagem baixada com sucesso.");
