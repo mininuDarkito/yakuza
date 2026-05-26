@@ -52,7 +52,7 @@ export default function MechaComicDashboard() {
       const res = await fetch('/api/admin/mechacomic/series');
       const data = await res.json();
       if (res.ok) {
-        setSeriesList(data);
+        setSeriesList(Array.isArray(data) ? data : (data.series || []));
       }
     } catch (e) {
       toast.error("Erro ao carregar séries.");

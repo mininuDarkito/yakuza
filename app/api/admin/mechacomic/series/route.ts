@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSeriesInfo } from '@/lib/mechacomic/engine';
+import { MechaConfigService } from '@/lib/mechacomic/config-service';
 
 export async function GET() {
   try {
@@ -12,7 +13,11 @@ export async function GET() {
         }
       }
     });
-    return NextResponse.json(series);
+
+    const session = await MechaConfigService.getConfig('playwright_session');
+    const hasAuth = !!session;
+
+    return NextResponse.json({ series, hasAuth });
   } catch (error: any) {
     console.error('Erro ao listar séries MechaComic:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });

@@ -172,7 +172,7 @@ export function MechaComicPanel() {
     addLog(`Atualizando capítulos: ${selectedSeries.title}`)
 
     try {
-      const res = await fetch("/api/admin/mechacomic/chapters", {
+      const res = await fetch("/api/admin/mechacomic/sync", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ seriesId: selectedSeries.id })

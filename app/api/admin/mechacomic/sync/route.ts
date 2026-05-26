@@ -30,9 +30,19 @@ export async function POST(req: Request) {
     console.log(`[Sync] Iniciando scraping de ${series.url}`);
     const scrapedInfo = await getSeriesInfo(series.url);
     
+    let newChaptersCount = 0;
+    
     // Atualizar capítulos no banco
     for (const ch of scrapedInfo.chapters) {
       const chapterUrl = `https://mechacomic.jp/chapters/${ch.id}`;
+      
+      const exists = await prisma.mecha_chapters.findFirst({
+        where: { series_id: seriesId, chapter_url: chapterUrl }
+      });
+      if (!exists) {
+        newChaptersCount++;
+      }
+
       await prisma.mecha_chapters.upsert({
         where: { series_id_chapter_url: { series_id: seriesId, chapter_url: chapterUrl } },
         update: {
@@ -131,9 +141,15 @@ export async function POST(req: Request) {
       data: { updated_at: new Date() }
     });
 
+    const totalChaptersCount = await prisma.mecha_chapters.count({
+      where: { series_id: seriesId }
+    });
+
     return NextResponse.json({ 
       success: true, 
-      points: scrapedInfo.points 
+      points: scrapedInfo.points,
+      newChapters: newChaptersCount,
+      totalChapters: totalChaptersCount
     });
   } catch (error: any) {
     console.error('Erro na sincronização:', error);

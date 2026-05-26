@@ -212,6 +212,14 @@ export async function downloadAndProcessChapter(chapterId: string, seriesName: s
       if (url.includes('/viewer_cryptokey/')) {
         cryptoKey = await response.text();
         console.log("🔑 Chave criptográfica interceptada!");
+      } else if (url.includes('/viewer_manifest/')) {
+        try {
+          const data = await response.json();
+          if (data && data.cryptokey) {
+            cryptoKey = data.cryptokey;
+            console.log("🔑 Chave criptográfica extraída do Manifest!");
+          }
+        } catch (e) {}
       } else if (url.includes('contents') && url.includes('.json')) {
         const data = await response.json();
         if (data.pages && data.images) {
