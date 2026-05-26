@@ -121,24 +121,38 @@ async function processDownload(
     const jsonData = result.jsonData;
     const cryptoKey = result.cryptoKey;
 
-    // 2. Baixar imagens e decriptar (Paralelizado)
-    const imageBuffers: Buffer[] = await Promise.all(
-      (jsonData.pages || []).map(async (pageInfo: any) => {
-        const imgKey = pageInfo.image;
-        if (!imgKey) return null;
+    // 2. Baixar imagens e decriptar (Paralelizado por lotes de 5 com retry)
+    const pages = jsonData.pages || [];
+    const imageBuffers: Buffer[] = [];
+    const BATCH_SIZE = 5;
 
-        const imgOpts = jsonData.images[imgKey] || [];
-        const opt = imgOpts.find((o: any) => o.format === "webp") || imgOpts[0];
-        const imgUrl = jsonData.base_dir + opt.src;
+    for (let i = 0; i < pages.length; i += BATCH_SIZE) {
+      const chunk = pages.slice(i, i + BATCH_SIZE);
+      const chunkResults = await Promise.all(
+        chunk.map(async (pageInfo: any) => {
+          const imgKey = pageInfo.image;
+          if (!imgKey) return null;
 
-        const resp = await fetch(imgUrl);
-        if (resp.ok) {
-          const encData = Buffer.from(await resp.arrayBuffer());
-          return CryptoProcessor.decryptMechaComic(encData, cryptoKey);
+          const imgOpts = jsonData.images[imgKey] || [];
+          const opt = imgOpts.find((o: any) => o.format === "webp") || imgOpts[0];
+          const imgUrl = jsonData.base_dir + opt.src;
+
+          try {
+            const encData = await fetchImageWithRetry(imgUrl);
+            return CryptoProcessor.decryptMechaComic(encData, cryptoKey);
+          } catch (e: any) {
+            console.error(`Falha persistente ao baixar imagem ${imgUrl} após todas as tentativas:`, e);
+            throw new Error(`Falha ao baixar a página do mangá: ${e.message}`);
+          }
+        })
+      );
+
+      for (const res of chunkResults) {
+        if (res !== null) {
+          imageBuffers.push(res);
         }
-        return null;
-      }),
-    ).then((results) => results.filter((b): b is Buffer => b !== null));
+      }
+    }
 
     if (imageBuffers.length === 0) {
       throw new Error("Nenhuma imagem baixada com sucesso.");
@@ -220,3 +234,33 @@ async function processDownload(
     });
   }
 }
+
+async function fetchImageWithRetry(imgUrl: string, maxRetries = 4, delayMs = 1500): Promise<Buffer> {
+  let attempt = 0;
+  while (true) {
+    attempt++;
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 12000); // 12 segundos de limite de conexão
+
+      const resp = await fetch(imgUrl, { signal: controller.signal });
+      clearTimeout(timeoutId);
+
+      if (!resp.ok) {
+        throw new Error(`Status ${resp.status} ${resp.statusText}`);
+      }
+      
+      const arrayBuf = await resp.arrayBuffer();
+      return Buffer.from(arrayBuf);
+    } catch (error: any) {
+      if (attempt >= maxRetries) {
+        console.error(`[Fetch Failed] Falha persistente após ${attempt} tentativas para ${imgUrl}:`, error);
+        throw error;
+      }
+      const backoffDelay = delayMs * Math.pow(2, attempt - 1) + Math.random() * 500;
+      console.warn(`[Fetch Retry] Tentativa ${attempt} falhou para ${imgUrl}. Retentando em ${Math.round(backoffDelay)}ms. Erro: ${error.message || error}`);
+      await new Promise(resolve => setTimeout(resolve, backoffDelay));
+    }
+  }
+}
+
