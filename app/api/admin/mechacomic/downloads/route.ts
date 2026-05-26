@@ -121,10 +121,10 @@ async function processDownload(
     const jsonData = result.jsonData;
     const cryptoKey = result.cryptoKey;
 
-    // 2. Baixar imagens e decriptar (Paralelizado por lotes de 5 com retry)
+    // 2. Baixar imagens e decriptar (Paralelizado por lotes de 15 com retry)
     const pages = jsonData.pages || [];
     const imageBuffers: Buffer[] = [];
-    const BATCH_SIZE = 5;
+    const BATCH_SIZE = 200;
 
     for (let i = 0; i < pages.length; i += BATCH_SIZE) {
       const chunk = pages.slice(i, i + BATCH_SIZE);
@@ -249,7 +249,7 @@ async function fetchImageWithRetry(imgUrl: string, maxRetries = 4, delayMs = 150
       if (!resp.ok) {
         throw new Error(`Status ${resp.status} ${resp.statusText}`);
       }
-      
+
       const arrayBuf = await resp.arrayBuffer();
       return Buffer.from(arrayBuf);
     } catch (error: any) {
