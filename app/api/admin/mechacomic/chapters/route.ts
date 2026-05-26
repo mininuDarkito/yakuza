@@ -15,7 +15,7 @@ export async function GET(req: Request) {
     }
 
     const [chapters, total] = await Promise.all([
-      prisma.mecha_chapters.findMany({
+      (prisma as any).mecha_chapters.findMany({
         where: { series_id: seriesId },
         orderBy: { created_at: 'desc' },
         ...(page ? { skip, take: limit } : { take: limit }),
@@ -24,7 +24,7 @@ export async function GET(req: Request) {
           series: true
         }
       }),
-      prisma.mecha_chapters.count({
+      (prisma as any).mecha_chapters.count({
         where: { series_id: seriesId }
       })
     ]);

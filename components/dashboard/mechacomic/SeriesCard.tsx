@@ -15,7 +15,7 @@ interface SeriesCardProps {
   onUpdate?: () => void;
 }
 
-export function SeriesCard({ series }: SeriesCardProps) {
+export function SeriesCard({ series, onUpdate }: SeriesCardProps) {
   const router = useRouter();
   const [chapterNum, setChapterNum] = useState("");
   const [loading, setLoading] = useState(false);

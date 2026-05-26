@@ -17,7 +17,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'seriesId é obrigatório' }, { status: 400 });
     }
 
-    const series = await prisma.mecha_series.findUnique({
+    const series = await (prisma as any).mecha_series.findUnique({
       where: { id: seriesId },
       include: { chapters: true }
     });
@@ -36,14 +36,14 @@ export async function POST(req: Request) {
     for (const ch of scrapedInfo.chapters) {
       const chapterUrl = `https://mechacomic.jp/chapters/${ch.id}`;
       
-      const exists = await prisma.mecha_chapters.findFirst({
+      const exists = await (prisma as any).mecha_chapters.findFirst({
         where: { series_id: seriesId, chapter_url: chapterUrl }
       });
       if (!exists) {
         newChaptersCount++;
       }
 
-      await prisma.mecha_chapters.upsert({
+      await (prisma as any).mecha_chapters.upsert({
         where: { series_id_chapter_url: { series_id: seriesId, chapter_url: chapterUrl } },
         update: {
           status: ch.status,
@@ -82,7 +82,7 @@ export async function POST(req: Request) {
         console.log(`[Sync] Encontradas ${driveFolders.length} pastas no Drive.`);
         
         // Buscar capítulos atualizados para ter os nomes e IDs
-        const dbChapters = await prisma.mecha_chapters.findMany({
+        const dbChapters = await (prisma as any).mecha_chapters.findMany({
           where: { series_id: seriesId }
         });
 
@@ -98,13 +98,13 @@ export async function POST(req: Request) {
           const driveMatch = driveFolders.find(f => f.name === chapterSafe);
           if (driveMatch) {
             // Verificar se já existe um download
-            const existingDownload = await prisma.mecha_downloads.findFirst({
+            const existingDownload = await (prisma as any).mecha_downloads.findFirst({
               where: { chapter_id: chapter.id },
               orderBy: { created_at: 'desc' }
             });
 
             if (!existingDownload) {
-              await prisma.mecha_downloads.create({
+              await (prisma as any).mecha_downloads.create({
                 data: {
                   chapter_id: chapter.id,
                   user_id: session.user.id,
@@ -116,7 +116,7 @@ export async function POST(req: Request) {
               matchesCount++;
             } else if (existingDownload.status !== 'completed' || !existingDownload.drive_link) {
               // Se falhou ou não tem link, mas a pasta existe no Drive, atualizamos
-              await prisma.mecha_downloads.update({
+              await (prisma as any).mecha_downloads.update({
                 where: { id: existingDownload.id },
                 data: { 
                   status: 'completed', 
@@ -136,12 +136,12 @@ export async function POST(req: Request) {
     }
 
     // Atualiza o updated_at da série
-    await prisma.mecha_series.update({
+    await (prisma as any).mecha_series.update({
       where: { id: seriesId },
       data: { updated_at: new Date() }
     });
 
-    const totalChaptersCount = await prisma.mecha_chapters.count({
+    const totalChaptersCount = await (prisma as any).mecha_chapters.count({
       where: { series_id: seriesId }
     });
 
