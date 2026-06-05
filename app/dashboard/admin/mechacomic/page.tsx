@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { SeriesCard } from "@/components/dashboard/mechacomic/SeriesCard";
+import { DailyReleasesPanel } from "@/components/dashboard/mechacomic/DailyReleasesPanel";
 import { Bot, Plus, Loader2, KeyRound, RefreshCw, Search } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -24,9 +25,12 @@ export default function MechaComicDashboard() {
   const [sessionInfo, setSessionInfo] = useState<{ isValid: boolean, points: string } | null>(null);
   const [checkingAuth, setCheckingAuth] = useState(false);
 
+  // Daily releases
+  const [dailyChapters, setDailyChapters] = useState<any[]>([]);
   useEffect(() => {
     fetchSeries();
     checkSession();
+    fetchDailyReleases();
   }, []);
 
   const checkSession = async () => {
@@ -58,6 +62,19 @@ export default function MechaComicDashboard() {
       toast.error("Erro ao carregar séries.");
     } finally {
       setFetching(false);
+    }
+  };
+
+  const fetchDailyReleases = async () => {
+    try {
+      // Busca capítulos de séries cujo last_auto_sync foi hoje
+      const res = await fetch('/api/admin/mechacomic/daily-releases');
+      if (res.ok) {
+        const data = await res.json();
+        setDailyChapters(data.chapters || []);
+      }
+    } catch (e) {
+      // Silencioso — não quebra a página
     }
   };
 
@@ -119,6 +136,9 @@ export default function MechaComicDashboard() {
 
   return (
     <div className="space-y-6">
+      {/* Painel de lançamentos do dia */}
+      <DailyReleasesPanel chapters={dailyChapters} onRefresh={fetchDailyReleases} />
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-black uppercase italic tracking-tighter flex items-center gap-2">

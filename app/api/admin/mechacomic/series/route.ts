@@ -7,7 +7,15 @@ export async function GET() {
   try {
     const series = await (prisma as any).mecha_series.findMany({
       orderBy: { created_at: 'desc' },
-      include: {
+      select: {
+        id: true,
+        url: true,
+        title: true,
+        cover_url: true,
+        schedule_days: true,
+        last_auto_sync: true,
+        created_at: true,
+        updated_at: true,
         _count: {
           select: { chapters: true, subscriptions: true }
         }

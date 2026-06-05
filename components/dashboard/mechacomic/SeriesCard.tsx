@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { BookOpen, Users, Download, Loader2, CheckCircle2, Pencil } from "lucide-react";
+import { BookOpen, Users, Download, Loader2, CheckCircle2, Pencil, CalendarDays } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -26,6 +26,44 @@ export function SeriesCard({ series, onUpdate }: SeriesCardProps) {
   const [editOpen, setEditOpen] = useState(false);
   const [newTitle, setNewTitle] = useState(series.title);
   const [updating, setUpdating] = useState(false);
+
+  // Schedule
+  const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [selectedDays, setSelectedDays] = useState<number[]>(series.schedule_days || []);
+  const [savingSchedule, setSavingSchedule] = useState(false);
+
+  const DAY_LABELS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+
+  const toggleDay = (day: number) => {
+    setSelectedDays(prev =>
+      prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]
+    );
+  };
+
+  const handleSaveSchedule = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setSavingSchedule(true);
+    try {
+      const res = await fetch('/api/admin/mechacomic/schedule', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ seriesId: series.id, days: selectedDays })
+      });
+      if (res.ok) {
+        toast.success(selectedDays.length > 0 ? `Agendamento salvo! (${selectedDays.map(d => DAY_LABELS[d]).join(', ')})` : 'Agendamento removido.');
+        setScheduleOpen(false);
+        if (onUpdate) onUpdate();
+      } else {
+        const data = await res.json();
+        toast.error(data.error || 'Erro ao salvar agendamento');
+      }
+    } catch {
+      toast.error('Erro de conexão');
+    } finally {
+      setSavingSchedule(false);
+    }
+  };
 
   const handleQuickDownload = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -150,11 +188,65 @@ export function SeriesCard({ series, onUpdate }: SeriesCardProps) {
           </div>
         )}
 
-        {/* Botão de Editar */}
+        {/* Botões de ação no hover: Editar + Agendar */}
         <div 
-          className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+          className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1.5"
           onClick={(e) => e.stopPropagation()}
         >
+          {/* --- Agendar --- */}
+          <Dialog open={scheduleOpen} onOpenChange={(open) => {
+            if (open) setSelectedDays(series.schedule_days || []);
+            setScheduleOpen(open);
+          }}>
+            <DialogTrigger asChild>
+              <Button size="icon" variant="secondary" className="w-8 h-8 rounded-full shadow-lg">
+                <CalendarDays className="w-4 h-4" />
+              </Button>
+            </DialogTrigger>
+            <DialogContent onClick={(e) => e.stopPropagation()}>
+              <DialogHeader>
+                <DialogTitle>Agendamento Auto-Sync</DialogTitle>
+                <DialogDescription>
+                  Selecione os dias da semana para sincronizar automaticamente às 12h (Brasília) / 00h (Japão).
+                </DialogDescription>
+              </DialogHeader>
+              <div className="py-4 space-y-4">
+                <Label>Dias da semana</Label>
+                <div className="flex gap-2 flex-wrap">
+                  {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map((label, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => toggleDay(idx)}
+                      className={`px-3 py-1.5 rounded-lg text-[11px] font-black uppercase transition-all ${
+                        selectedDays.includes(idx)
+                          ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/30'
+                          : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                {series.last_auto_sync && (
+                  <p className="text-[10px] text-zinc-500">
+                    Último sync automático: {new Date(series.last_auto_sync).toLocaleString('pt-BR')}
+                  </p>
+                )}
+                {selectedDays.length === 0 && (
+                  <p className="text-[10px] text-zinc-600 italic">Nenhum dia selecionado = sem auto-sync.</p>
+                )}
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setScheduleOpen(false)} disabled={savingSchedule}>Cancelar</Button>
+                <Button onClick={handleSaveSchedule} disabled={savingSchedule}>
+                  {savingSchedule && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  Salvar
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* --- Editar nome --- */}
           <Dialog open={editOpen} onOpenChange={setEditOpen}>
             <DialogTrigger asChild>
               <Button size="icon" variant="secondary" className="w-8 h-8 rounded-full shadow-lg">
@@ -187,6 +279,15 @@ export function SeriesCard({ series, onUpdate }: SeriesCardProps) {
             </DialogContent>
           </Dialog>
         </div>
+
+        {/* Badge Auto-Sync */}
+        {(series.schedule_days?.length > 0) && (
+          <div className="absolute bottom-2 left-2">
+            <span className="flex items-center gap-1 bg-primary/20 border border-primary/40 text-primary text-[9px] font-black uppercase px-2 py-0.5 rounded-full backdrop-blur-sm">
+              <CalendarDays className="w-2.5 h-2.5" /> Auto
+            </span>
+          </div>
+        )}
       </div>
       <CardHeader className="p-4 pb-2">
         <CardTitle className="text-lg line-clamp-2">{series.title}</CardTitle>
