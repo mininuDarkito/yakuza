@@ -301,11 +301,11 @@ export async function loginAndSaveSession(email: string, pass: string) {
   }
 }
 
-// Função para buscar o saldo de pontos da conta MechaComic
-export async function getAccountPoints() {
+// Função para buscar informações da conta MechaComic
+export async function getAccountInfo() {
   const browser = await chromium.launch({ headless: true });
   const contextOptions: any = { locale: 'ja-JP' };
-  
+
   const storageState = await MechaConfigService.getConfig('playwright_session');
   if (storageState) {
     contextOptions.storageState = storageState;
@@ -314,16 +314,32 @@ export async function getAccountPoints() {
   const page = await context.newPage();
 
   try {
-    await page.goto('https://mechacomic.jp/', { waitUntil: 'domcontentloaded' });
+    await page.goto('https://mechacomic.jp/account', { waitUntil: 'domcontentloaded' });
+    await page.waitForTimeout(1000);
     const html = await page.content();
     const $ = load(html);
-    const pointsElement = $('.colorRed.txt16');
-    if (pointsElement.length === 0) return null;
-    
-    const pointsValue = pointsElement.first().text().trim() || '0';
-    return pointsValue;
+
+    const pointsValue = $('.colorRed.txt16').first().text().trim() || '';
+    const username = $('.p-pointBox_nickname_title').first().text().trim() || '';
+
+    if (!pointsValue && !username) {
+      return null;
+    }
+
+    return {
+      points: pointsValue || '0',
+      username: username || null,
+    };
+  } catch (error) {
+    console.error('Erro ao buscar conta MechaComic:', error);
+    return null;
   } finally {
     await browser.close();
   }
+}
+
+export async function getAccountPoints() {
+  const accountInfo = await getAccountInfo();
+  return accountInfo?.points ?? null;
 }
 

@@ -4,15 +4,20 @@ import { getSeriesInfo } from '@/lib/mechacomic/engine';
 import { GoogleDriveUploader } from '@/lib/mechacomic/drive';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { createMechaComicLog } from '@/lib/mechacomic/logger';
 
 export async function POST(req: Request) {
+  let session: any = null;
+  let seriesId = '';
+
   try {
-    const session = await getServerSession(authOptions);
+    session = await getServerSession(authOptions);
     if (!session || session.user.role !== 'admin') {
       return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
     }
 
-    const { seriesId } = await req.json();
+    const body = await req.json();
+    seriesId = body.seriesId;
     if (!seriesId) {
       return NextResponse.json({ error: 'seriesId é obrigatório' }, { status: 400 });
     }
@@ -23,8 +28,17 @@ export async function POST(req: Request) {
     });
 
     if (!series) {
+      await createMechaComicLog(session.user.id, 'sync-error', {
+        seriesId,
+        reason: 'Série não encontrada',
+      });
       return NextResponse.json({ error: 'Série não encontrada' }, { status: 404 });
     }
+
+    await createMechaComicLog(session.user.id, 'sync-start', {
+      seriesId,
+      seriesUrl: series.url,
+    });
 
     // 1. Scraping MechaComic
     console.log(`[Sync] Iniciando scraping de ${series.url}`);
@@ -145,6 +159,13 @@ export async function POST(req: Request) {
       where: { series_id: seriesId }
     });
 
+    await createMechaComicLog(session.user.id, 'sync-success', {
+      seriesId,
+      newChapters: newChaptersCount,
+      totalChapters: totalChaptersCount,
+      points: scrapedInfo.points,
+    });
+
     return NextResponse.json({ 
       success: true, 
       points: scrapedInfo.points,
@@ -153,6 +174,10 @@ export async function POST(req: Request) {
     });
   } catch (error: any) {
     console.error('Erro na sincronização:', error);
+    await createMechaComicLog(session.user.id, 'sync-error', {
+      seriesId,
+      error: error.message,
+    });
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

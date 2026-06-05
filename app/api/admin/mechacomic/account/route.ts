@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getAccountPoints } from '@/lib/mechacomic/engine';
+import { getAccountInfo } from '@/lib/mechacomic/engine';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { MechaConfigService } from '@/lib/mechacomic/config-service';
@@ -13,11 +13,12 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
     }
 
-    const points = await getAccountPoints();
-    const isValid = points !== null;
+    const accountInfo = await getAccountInfo();
+    const isValid = accountInfo !== null;
     return NextResponse.json({ 
-      isValid, 
-      points: points || '0' 
+      isValid,
+      points: accountInfo?.points || '0',
+      username: accountInfo?.username || null,
     });
   } catch (error: any) {
     console.error('Erro ao buscar pontos da conta:', error);

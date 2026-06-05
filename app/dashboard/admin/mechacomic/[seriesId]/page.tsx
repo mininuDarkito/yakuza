@@ -29,14 +29,17 @@ export default function SeriesDetailsPage({ params }: { params: Promise<{ series
   const [page, setPage] = useState(initialPage);
   const [totalPages, setTotalPages] = useState(1);
   const [totalChapters, setTotalChapters] = useState(0);
-  const [accountPoints, setAccountPoints] = useState<string>("...");
+  const [accountInfo, setAccountInfo] = useState<{ points: string; username?: string }>({ points: '...', username: undefined });
 
   const fetchPoints = async () => {
     try {
       const res = await fetch('/api/admin/mechacomic/account');
       if (res.ok) {
         const data = await res.json();
-        setAccountPoints(data.points);
+        setAccountInfo({
+          points: data.points || '0',
+          username: data.username || undefined,
+        });
       }
     } catch (e) {}
   };
@@ -138,7 +141,12 @@ export default function SeriesDetailsPage({ params }: { params: Promise<{ series
       if (res.ok) {
         const data = await res.json();
         toast.success("Sincronização concluída!", { id: toastId });
-        if (data.points) setAccountPoints(data.points);
+        if (data.points || data.username) {
+          setAccountInfo({
+            points: data.points || accountInfo.points,
+            username: data.username || accountInfo.username,
+          });
+        }
         fetchChapters();
       } else {
         const data = await res.json();
@@ -161,7 +169,10 @@ export default function SeriesDetailsPage({ params }: { params: Promise<{ series
           <div className="bg-zinc-900 border border-zinc-800 px-3 py-1 rounded-full flex items-center gap-2 shadow-inner">
             <div className="w-2 h-2 bg-primary rounded-full animate-pulse" />
             <span className="text-[10px] font-black uppercase text-zinc-400">Saldo Mecha:</span>
-            <span className="text-sm font-black text-primary font-mono">{accountPoints} pt</span>
+            <span className="text-sm font-black text-primary font-mono">{accountInfo.points} pt</span>
+            {accountInfo.username && (
+              <span className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">{accountInfo.username}</span>
+            )}
             <Button variant="ghost" size="icon" className="w-6 h-6 hover:bg-zinc-800" onClick={fetchPoints}>
               <RefreshCw className="w-3 h-3" />
             </Button>

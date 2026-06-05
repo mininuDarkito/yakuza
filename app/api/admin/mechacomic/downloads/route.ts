@@ -7,8 +7,7 @@ import {
 import { processAndStitchImages } from "@/lib/mechacomic/image-processor";
 import { GoogleDriveUploader } from "@/lib/mechacomic/drive";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import fs from "fs";
+import { authOptions } from "@/lib/auth";import { createMechaComicLog } from '@/lib/mechacomic/logger';import fs from "fs";
 import path from "path";
 import os from "os";
 const archiver = require("archiver");
@@ -75,12 +74,25 @@ export async function POST(req: Request) {
       downloads.push(download);
 
       // Inicia o processamento em background (fire and forget)
-      processDownload(download.id, chapterId, stitchMode).catch(console.error);
+      processDownload(download.id, chapterId, stitchMode, userId).catch(console.error);
     }
+
+    await createMechaComicLog(userId, 'download-api-created', {
+      chapterIds,
+      stitchMode,
+      downloadIds: downloads.map((download) => download.id),
+    });
 
     return NextResponse.json({ success: true, downloads });
   } catch (error: any) {
     console.error("Erro ao iniciar download:", error);
+    if (userId) {
+      await createMechaComicLog(userId, 'download-api-error', {
+        chapterIds,
+        stitchMode,
+        error: error.message,
+      });
+    }
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
@@ -90,11 +102,18 @@ async function processDownload(
   downloadId: string,
   chapterId: string,
   stitchMode: boolean,
+  userId: string,
 ) {
   try {
     await (prisma as any).mecha_downloads.update({
       where: { id: downloadId },
       data: { status: "processing" },
+    });
+
+    await createMechaComicLog(userId, 'download-processing', {
+      downloadId,
+      chapterId,
+      stitchMode,
     });
 
     const chapter = await (prisma as any).mecha_chapters.findUnique({
@@ -226,11 +245,22 @@ async function processDownload(
       where: { id: downloadId },
       data: { status: "completed", drive_link: driveLink },
     });
+
+    await createMechaComicLog(userId, 'download-completed', {
+      downloadId,
+      chapterId,
+      driveLink,
+    });
   } catch (e: any) {
     console.error(`Erro no download ${downloadId}:`, e);
     await (prisma as any).mecha_downloads.update({
       where: { id: downloadId },
       data: { status: "failed", error: e.message },
+    });
+    await createMechaComicLog(userId, 'download-failed', {
+      downloadId,
+      chapterId,
+      error: e.message,
     });
   }
 }

@@ -1,7 +1,10 @@
 import { NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { getSeriesInfo } from '@/lib/mechacomic/engine';
 import { MechaConfigService } from '@/lib/mechacomic/config-service';
+import { createMechaComicLog } from '@/lib/mechacomic/logger';
 
 export async function GET() {
   try {
@@ -33,21 +36,31 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
+  let session = null;
+  let requestUrl = '';
+
   try {
-    const { url } = await req.json();
-    if (!url || !url.includes('mechacomic.jp')) {
+    session = await getServerSession(authOptions);
+    const body = await req.json();
+    requestUrl = body.url;
+    if (!requestUrl || !requestUrl.includes('mechacomic.jp')) {
       return NextResponse.json({ error: 'URL inválida.' }, { status: 400 });
     }
 
     // Verifica se já existe
-    const existing = await (prisma as any).mecha_series.findUnique({ where: { url } });
+    const existing = await (prisma as any).mecha_series.findUnique({ where: { url: requestUrl } });
     if (existing) {
+      if (session?.user?.id) {
+        await createMechaComicLog(session.user.id, 'series-add-duplicate', {
+          url: requestUrl,
+        });
+      }
       return NextResponse.json({ error: 'Série já está sendo monitorada.' }, { status: 400 });
     }
 
     // Scrape series info
-    console.log("Scraping series info from: ", url);
-    const info = await getSeriesInfo(url);
+    console.log("Scraping series info from: ", requestUrl);
+    const info = await getSeriesInfo(requestUrl);
     if (!info || !info.title) {
       return NextResponse.json({ error: 'Falha ao buscar informações da série.' }, { status: 400 });
     }
@@ -55,11 +68,19 @@ export async function POST(req: Request) {
     // Create series
     const series = await (prisma as any).mecha_series.create({
       data: {
-        url,
+        url: requestUrl,
         title: info.title,
         cover_url: info.cover_url
       }
     });
+
+    if (session?.user?.id) {
+      await createMechaComicLog(session.user.id, 'series-add', {
+        seriesId: series.id,
+        title: info.title,
+        url: requestUrl,
+      });
+    }
 
     // Create chapters
     for (const chapter of info.chapters) {
@@ -79,6 +100,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ series, chaptersAdded: info.chapters.length });
   } catch (error: any) {
     console.error('Erro ao adicionar série MechaComic:', error);
+    if (session?.user?.id) {
+      await createMechaComicLog(session.user.id, 'series-add-error', {
+        url: requestUrl,
+        error: error.message,
+      });
+    }
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

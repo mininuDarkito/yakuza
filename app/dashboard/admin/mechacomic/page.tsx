@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { SeriesCard } from "@/components/dashboard/mechacomic/SeriesCard";
 import { DailyReleasesPanel } from "@/components/dashboard/mechacomic/DailyReleasesPanel";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Bot, Plus, Loader2, KeyRound, RefreshCw, Search } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -16,22 +17,21 @@ export default function MechaComicDashboard() {
   const [seriesList, setSeriesList] = useState<any[]>([]);
   const [fetching, setFetching] = useState(true);
   const [search, setSearch] = useState("");
+  const [logs, setLogs] = useState<any[]>([]);
+  const [logsLoading, setLogsLoading] = useState(false);
+  const [logFilter, setLogFilter] = useState("");
+  const [showErrorsOnly, setShowErrorsOnly] = useState(true);
 
   // Auth State
   const [authOpen, setAuthOpen] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loggingIn, setLoggingIn] = useState(false);
-  const [sessionInfo, setSessionInfo] = useState<{ isValid: boolean, points: string } | null>(null);
+  const [sessionInfo, setSessionInfo] = useState<{ isValid: boolean, points: string, username?: string } | null>(null);
   const [checkingAuth, setCheckingAuth] = useState(false);
 
   // Daily releases
   const [dailyChapters, setDailyChapters] = useState<any[]>([]);
-  useEffect(() => {
-    fetchSeries();
-    checkSession();
-    fetchDailyReleases();
-  }, []);
 
   const checkSession = async () => {
     setCheckingAuth(true);
@@ -39,7 +39,11 @@ export default function MechaComicDashboard() {
       const res = await fetch('/api/admin/mechacomic/account');
       if (res.ok) {
         const data = await res.json();
-        setSessionInfo(data);
+        setSessionInfo({
+          isValid: data.isValid,
+          points: data.points || '0',
+          username: data.username || undefined,
+        });
       } else {
         setSessionInfo({ isValid: false, points: '0' });
       }
@@ -77,6 +81,37 @@ export default function MechaComicDashboard() {
       // Silencioso — não quebra a página
     }
   };
+
+  const fetchLogs = async () => {
+    setLogsLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (logFilter.trim()) params.set('search', logFilter.trim());
+      if (showErrorsOnly) params.set('level', 'error');
+      const res = await fetch(`/api/admin/mechacomic/logs?${params.toString()}`);
+      const data = await res.json();
+      if (res.ok) {
+        setLogs(data.logs || []);
+      } else {
+        toast.error(data.error || 'Erro ao carregar logs.');
+      }
+    } catch (e) {
+      toast.error('Erro ao carregar logs.');
+    } finally {
+      setLogsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchSeries();
+    checkSession();
+    fetchDailyReleases();
+    fetchLogs();
+  }, []);
+
+  useEffect(() => {
+    fetchLogs();
+  }, [showErrorsOnly]);
 
   const handleAdd = async () => {
     if (!url) return;
@@ -139,6 +174,62 @@ export default function MechaComicDashboard() {
       {/* Painel de lançamentos do dia */}
       <DailyReleasesPanel chapters={dailyChapters} onRefresh={fetchDailyReleases} />
 
+      <div className="space-y-4 rounded-3xl border border-zinc-800 bg-zinc-950 p-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-xl font-black uppercase tracking-tighter">Logs do MechaComic</h2>
+            <p className="text-sm text-zinc-500">Veja erros e eventos relacionados ao motor MechaComic sem sair do painel.</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Input
+              value={logFilter}
+              onChange={(e) => setLogFilter(e.target.value)}
+              placeholder="Buscar logs..."
+              className="min-w-55 bg-zinc-900"
+            />
+            <Button
+              variant={showErrorsOnly ? 'secondary' : 'outline'}
+              size="sm"
+              onClick={() => setShowErrorsOnly((prev) => !prev)}
+            >
+              {showErrorsOnly ? 'Somente erros' : 'Mostrar todos'}
+            </Button>
+            <Button size="sm" onClick={fetchLogs}>
+              Atualizar
+            </Button>
+          </div>
+        </div>
+
+        <div className="mt-4 rounded-3xl border border-zinc-800 bg-zinc-900">
+          <ScrollArea className="h-72 rounded-3xl p-4">
+            {logsLoading ? (
+              <div className="flex h-full items-center justify-center text-sm text-zinc-500">Carregando logs...</div>
+            ) : logs.length === 0 ? (
+              <div className="text-sm text-zinc-500">Nenhum log encontrado para os filtros selecionados.</div>
+            ) : (
+              <div className="space-y-3 text-xs text-zinc-200">
+                {logs.map((log) => (
+                  <div key={log.id} className="rounded-2xl border border-zinc-800 bg-zinc-950 p-3">
+                    <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                      <span className="font-black uppercase text-zinc-300">{log.action}</span>
+                      <span className="text-[10px] uppercase tracking-[0.15em] text-zinc-500">
+                        {new Date(log.created_at).toLocaleString('pt-BR')}
+                      </span>
+                    </div>
+                    <div className="mt-2 text-[10px] text-zinc-400 whitespace-pre-wrap wrap-break-word">
+                      {JSON.stringify(log.details || {}, null, 2)}
+                    </div>
+                    {log.users?.discord_username && (
+                      <div className="mt-2 text-[10px] text-zinc-500">Usuário: {log.users.discord_username}</div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </ScrollArea>
+        </div>
+      </div>
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-black uppercase italic tracking-tighter flex items-center gap-2">
@@ -165,6 +256,11 @@ export default function MechaComicDashboard() {
                 <div className="flex items-center gap-2 border-l border-zinc-800 pl-3">
                   <span className="text-[10px] font-black uppercase text-zinc-500">Saldo:</span>
                   <span className="text-sm font-black text-primary font-mono">{sessionInfo.points} pt</span>
+                  {sessionInfo.username && (
+                    <span className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">
+                      Conta: {sessionInfo.username}
+                    </span>
+                  )}
                 </div>
               )}
               <Button variant="ghost" size="icon" className="w-5 h-5 ml-1 hover:bg-zinc-800" onClick={checkSession}>

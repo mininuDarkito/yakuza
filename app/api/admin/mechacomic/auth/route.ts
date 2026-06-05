@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { loginAndSaveSession } from '@/lib/mechacomic/engine';
+import { createMechaComicLog } from '@/lib/mechacomic/logger';
 
 export async function POST(req: Request) {
   try {
@@ -21,12 +22,24 @@ export async function POST(req: Request) {
     const result = await loginAndSaveSession(email, password);
 
     if (result.error) {
+      await createMechaComicLog(session.user.id, 'auth-error', {
+        message: result.error,
+      });
       return NextResponse.json({ error: result.error }, { status: 400 });
     }
+
+    await createMechaComicLog(session.user.id, 'auth-success', {
+      message: 'Sessão renovada com sucesso',
+    });
 
     return NextResponse.json({ success: true, message: 'Sessão renovada com sucesso!' });
   } catch (error: any) {
     console.error('Erro na rota de login MechaComic:', error);
+    if (session?.user?.id) {
+      await createMechaComicLog(session.user.id, 'auth-exception', {
+        error: error.message,
+      });
+    }
     return NextResponse.json({ error: 'Erro interno no servidor' }, { status: 500 });
   }
 }
