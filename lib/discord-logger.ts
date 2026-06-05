@@ -223,7 +223,10 @@ export async function sendMechaComicLog(mechaData: {
       },
       {
         name: "💸 Custo",
-        value: mechaData.cost != null ? `R$ ${mechaData.cost.toFixed(2)}` : "N/A",
+        value:
+          mechaData.cost != null && Number.isFinite(Number(mechaData.cost))
+            ? `R$ ${Number(mechaData.cost).toFixed(2)}`
+            : "N/A",
         inline: true,
       },
       {
