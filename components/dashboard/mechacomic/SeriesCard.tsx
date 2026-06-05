@@ -292,6 +292,17 @@ export function SeriesCard({ series, onUpdate }: SeriesCardProps) {
       <CardHeader className="p-4 pb-2">
         <CardTitle className="text-lg line-clamp-2">{series.title}</CardTitle>
         <CardDescription className="text-xs truncate">{series.url}</CardDescription>
+        {series.schedule_days?.length ? (
+          <div className="mt-2 flex flex-wrap gap-1">
+            {series.schedule_days.map((day: number) => (
+              <span key={day} className="rounded-full border border-zinc-700 bg-zinc-900/80 px-2 py-1 text-[10px] uppercase tracking-[0.2em] text-zinc-300">
+                {DAY_LABELS[day]}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <p className="mt-2 text-[10px] uppercase tracking-[0.2em] text-zinc-500">Sem calendário</p>
+        )}
       </CardHeader>
       
       <CardContent className="p-4 pt-0 mt-auto flex justify-between text-muted-foreground text-sm">

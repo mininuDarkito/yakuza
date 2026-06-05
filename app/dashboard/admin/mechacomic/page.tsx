@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { SeriesCard } from "@/components/dashboard/mechacomic/SeriesCard";
 import { DailyReleasesPanel } from "@/components/dashboard/mechacomic/DailyReleasesPanel";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Bot, Plus, Loader2, KeyRound, RefreshCw, Search } from "lucide-react";
+import { Bot, Plus, Loader2, KeyRound, RefreshCw, Search, ExternalLink, User, Clock, Image } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 
@@ -17,6 +17,7 @@ export default function MechaComicDashboard() {
   const [seriesList, setSeriesList] = useState<any[]>([]);
   const [fetching, setFetching] = useState(true);
   const [search, setSearch] = useState("");
+  const [dayFilter, setDayFilter] = useState<number[]>([]);
   const [logs, setLogs] = useState<any[]>([]);
   const [logsLoading, setLogsLoading] = useState(false);
   const [logFilter, setLogFilter] = useState("");
@@ -32,6 +33,33 @@ export default function MechaComicDashboard() {
 
   // Daily releases
   const [dailyChapters, setDailyChapters] = useState<any[]>([]);
+  const DAY_LABELS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+
+  const toggleDayFilter = (day: number) => {
+    setDayFilter((prev) =>
+      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day],
+    );
+  };
+
+  const getScheduleOrder = (series: any) => {
+    if (!series.schedule_days?.length) return 7;
+    return Math.min(...series.schedule_days);
+  };
+
+  const filteredSeries = useMemo(() => {
+    return [...seriesList]
+      .filter((s) => s.title.toLowerCase().includes(search.toLowerCase()))
+      .filter((s) =>
+        dayFilter.length === 0 ||
+        (s.schedule_days || []).some((day: number) => dayFilter.includes(day)),
+      )
+      .sort((a, b) => {
+        const orderA = getScheduleOrder(a);
+        const orderB = getScheduleOrder(b);
+        if (orderA !== orderB) return orderA - orderB;
+        return a.title.localeCompare(b.title);
+      });
+  }, [seriesList, search, dayFilter]);
 
   const checkSession = async () => {
     setCheckingAuth(true);
@@ -208,22 +236,121 @@ export default function MechaComicDashboard() {
               <div className="text-sm text-zinc-500">Nenhum log encontrado para os filtros selecionados.</div>
             ) : (
               <div className="space-y-3 text-xs text-zinc-200">
-                {logs.map((log) => (
-                  <div key={log.id} className="rounded-2xl border border-zinc-800 bg-zinc-950 p-3">
-                    <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                      <span className="font-black uppercase text-zinc-300">{log.action}</span>
-                      <span className="text-[10px] uppercase tracking-[0.15em] text-zinc-500">
-                        {new Date(log.created_at).toLocaleString('pt-BR')}
-                      </span>
+                {logs.map((log) => {
+                  const details = log.details || {};
+                  const isDownloadCompleted = log.action === 'download-completed' && details.series;
+                  const profileIconUrl = details.user?.profileIcon && String(details.user.profileIcon).startsWith('http')
+                    ? String(details.user.profileIcon)
+                    : null;
+
+                  return (
+                    <div key={log.id} className="rounded-2xl border border-zinc-800 bg-zinc-950 p-3">
+                      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                        <span className="font-black uppercase text-zinc-300">{log.action}</span>
+                        <span className="text-[10px] uppercase tracking-[0.15em] text-zinc-500">
+                          {new Date(log.created_at).toLocaleString('pt-BR')}
+                        </span>
+                      </div>
+
+                      {isDownloadCompleted ? (
+                        <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto]">
+                          <div className="space-y-3">
+                            <div className="flex items-center gap-3">
+                              <div className="flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900 px-2 py-1 text-[10px] uppercase tracking-[0.2em] text-zinc-300">
+                                <User className="w-3.5 h-3.5" />
+                                {log.users?.discord_username || details.user?.discordUsername || 'Usuário desconhecido'}
+                              </div>
+                              {details.mechaAccount?.username && (
+                                <div className="flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900 px-2 py-1 text-[10px] uppercase tracking-[0.2em] text-zinc-300">
+                                  <Image className="w-3.5 h-3.5" />
+                                  {details.mechaAccount.username}
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="flex flex-col gap-2 rounded-2xl border border-zinc-800 bg-zinc-900 p-3">
+                              <div className="flex items-center justify-between gap-3">
+                                <div>
+                                  <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Série</p>
+                                  <p className="font-black text-sm text-zinc-100">{details.series?.title || '—'}</p>
+                                </div>
+                                {details.series?.thumbnail && (
+                                  <img src={details.series.thumbnail} alt={details.series.title} className="h-14 w-14 rounded-xl object-cover" />
+                                )}
+                              </div>
+
+                              <div className="grid gap-2 sm:grid-cols-2">
+                                <div>
+                                  <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Capítulo</p>
+                                  <p className="text-sm font-black text-zinc-100">{details.chapter?.fullTitle || '—'}</p>
+                                </div>
+                                <div>
+                                  <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Pontos usados</p>
+                                  <p className="text-sm font-black text-zinc-100">{details.chapter?.cost || '0'} pt</p>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="grid gap-2 sm:grid-cols-2">
+                              <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-3">
+                                <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Saldo atual</p>
+                                <p className="text-sm font-black text-zinc-100">{details.mechaAccount?.currentPoints || '0'} pt</p>
+                              </div>
+                              <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-3">
+                                <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Baixado em</p>
+                                <p className="text-sm font-black text-zinc-100">{new Date(details.downloadedAt || log.created_at).toLocaleString('pt-BR')}</p>
+                              </div>
+                            </div>
+
+                            {details.driveLink && (
+                              <a
+                                href={details.driveLink}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center gap-2 rounded-full border border-green-500 bg-green-500/10 px-3 py-2 text-[10px] font-black uppercase tracking-[0.15em] text-green-300 hover:bg-green-500/20"
+                              >
+                                <ExternalLink className="w-3.5 h-3.5" />
+                                Abrir Link Drive
+                              </a>
+                            )}
+                          </div>
+
+                          <div className="flex flex-col gap-3 rounded-2xl border border-zinc-800 bg-zinc-900 p-3">
+                            <div className="flex items-center gap-2">
+                              {profileIconUrl ? (
+                                <img src={profileIconUrl} alt="Avatar" className="h-10 w-10 rounded-full object-cover" />
+                              ) : (
+                                <div className="grid h-10 w-10 place-items-center rounded-full bg-zinc-800 text-zinc-400">
+                                  <User className="h-5 w-5" />
+                                </div>
+                              )}
+                              <div>
+                                <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Perfil de quem baixou</p>
+                                <p className="font-black text-sm text-zinc-100">{log.users?.discord_username || details.user?.discordUsername || 'Desconhecido'}</p>
+                              </div>
+                            </div>
+                            <div className="rounded-2xl border border-zinc-800 bg-zinc-950 p-3 text-[10px] text-zinc-400">
+                              <p className="font-black uppercase tracking-[0.15em] text-zinc-300">Dados do download</p>
+                              <p>Nome da série: {details.series?.title || '—'}</p>
+                              <p>Nome do capítulo: {details.chapter?.fullTitle || '—'}</p>
+                              <p>Pontos usados: {details.chapter?.cost || '0'} pt</p>
+                              <p>Saldo atual: {details.mechaAccount?.currentPoints || '0'} pt</p>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="mt-2 text-[10px] text-zinc-400 whitespace-pre-wrap wrap-break-word">
+                            {JSON.stringify(details, null, 2)}
+                          </div>
+                          {log.users?.discord_username && (
+                            <div className="mt-2 text-[10px] text-zinc-500">Usuário: {log.users.discord_username}</div>
+                          )}
+                        </>
+                      )}
                     </div>
-                    <div className="mt-2 text-[10px] text-zinc-400 whitespace-pre-wrap wrap-break-word">
-                      {JSON.stringify(log.details || {}, null, 2)}
-                    </div>
-                    {log.users?.discord_username && (
-                      <div className="mt-2 text-[10px] text-zinc-500">Usuário: {log.users.discord_username}</div>
-                    )}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </ScrollArea>
@@ -341,23 +468,44 @@ export default function MechaComicDashboard() {
         />
       </div>
 
+      <div className="flex flex-wrap gap-2 items-center">
+        <span className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Filtro de dia</span>
+        {DAY_LABELS.map((label, index) => (
+          <Button
+            key={label}
+            size="sm"
+            variant={dayFilter.includes(index) ? 'secondary' : 'outline'}
+            onClick={() => toggleDayFilter(index)}
+            className="h-8 px-3 text-[10px] font-black uppercase"
+          >
+            {label}
+          </Button>
+        ))}
+        {dayFilter.length > 0 && (
+          <Button size="sm" variant="ghost" onClick={() => setDayFilter([])} className="h-8 px-3 text-[10px] font-black uppercase">
+            Limpar
+          </Button>
+        )}
+      </div>
+
       {fetching ? (
         <div className="flex justify-center py-12">
           <Loader2 className="w-8 h-8 animate-spin text-primary" />
         </div>
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-          {seriesList
-            .filter(s => s.title.toLowerCase().includes(search.toLowerCase()))
-            .map((series) => (
-              <SeriesCard key={series.id} series={series} onUpdate={fetchSeries} />
-            ))
-          }
-          {seriesList.length === 0 && (
+          {filteredSeries.map((series) => (
+            <SeriesCard key={series.id} series={series} onUpdate={fetchSeries} />
+          ))}
+          {seriesList.length === 0 ? (
             <div className="col-span-full py-12 text-center text-muted-foreground">
               Nenhuma série monitorada. Adicione uma URL acima.
             </div>
-          )}
+          ) : filteredSeries.length === 0 ? (
+            <div className="col-span-full py-12 text-center text-muted-foreground">
+              Nenhuma série encontrada para os filtros aplicados.
+            </div>
+          ) : null}
         </div>
       )}
     </div>

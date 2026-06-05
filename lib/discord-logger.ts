@@ -1,6 +1,33 @@
 import axios from "axios";
 import { prisma } from "./db";
 import logsConfig from "../logs_config.json";
+import mechacomicLogsConfig from "../mechacomic_logs_config.json";
+
+async function sendDiscordEmbed(channelId: string, embed: Record<string, any>) {
+  const token = process.env.DISCORD_BOT_TOKEN;
+  if (!token || !channelId) {
+    console.error("Discord token or channel ID missing for logging.");
+    return;
+  }
+
+  try {
+    await axios.post(
+      `https://discord.com/api/v10/channels/${channelId}/messages`,
+      { embeds: [embed] },
+      {
+        headers: {
+          Authorization: `Bot ${token}`,
+          "Content-Type": "application/json",
+        },
+      },
+    );
+  } catch (error: any) {
+    console.error(
+      "Erro ao enviar log para o Discord:",
+      error?.response?.data || error.message,
+    );
+  }
+}
 
 export async function sendVendaLog(vendaData: {
   userId: string;
@@ -133,4 +160,111 @@ export async function sendVendaLog(vendaData: {
       error?.response?.data || error.message,
     );
   }
+}
+
+export async function sendMechaComicLog(mechaData: {
+  userId: string;
+  seriesTitle: string;
+  seriesThumbnail?: string | null;
+  chapterNumber?: string | null;
+  chapterTitle?: string | null;
+  chapterFullTitle?: string;
+  cost?: number | null;
+  driveLink?: string | null;
+  mechaAccountUsername?: string | null;
+  mechaPoints?: number | null;
+  downloadedAt?: Date | string;
+  discordUsername?: string | null;
+  profileIcon?: string | null;
+  status: "completed" | "failed";
+  errorMessage?: string;
+}) {
+  const channelId = mechacomicLogsConfig.logChannelId;
+  if (!channelId) {
+    console.error("MechaComic Discord channel ID missing for logging.");
+    return;
+  }
+
+  const now = mechaData.downloadedAt
+    ? new Date(mechaData.downloadedAt)
+    : new Date();
+
+  const embed: Record<string, any> = {
+    title:
+      mechaData.status === "completed"
+        ? "✅ MechaComic - Download Concluído"
+        : "❌ MechaComic - Download Falhou",
+    color: mechaData.status === "completed" ? 0x22c55e : 0xef4444,
+    author: {
+      name: mechaData.discordUsername || "MechaComic User",
+      icon_url: mechaData.profileIcon || undefined,
+    },
+    fields: [
+      {
+        name: "📚 Série",
+        value: mechaData.seriesTitle,
+        inline: true,
+      },
+      {
+        name: "📖 Capítulo",
+        value:
+          mechaData.chapterNumber || mechaData.chapterTitle || "Sem título",
+        inline: true,
+      },
+      {
+        name: "💬 Nome do capítulo",
+        value: mechaData.chapterTitle || "N/A",
+        inline: true,
+      },
+      {
+        name: "🧾 Título completo",
+        value: mechaData.chapterFullTitle || "N/A",
+        inline: true,
+      },
+      {
+        name: "💸 Custo",
+        value: mechaData.cost != null ? `R$ ${mechaData.cost.toFixed(2)}` : "N/A",
+        inline: true,
+      },
+      {
+        name: "👤 Conta MechaComic",
+        value: mechaData.mechaAccountUsername || "N/A",
+        inline: true,
+      },
+      {
+        name: "⭐ Pontos atuais",
+        value:
+          mechaData.mechaPoints != null
+            ? mechaData.mechaPoints.toString()
+            : "N/A",
+        inline: true,
+      },
+      {
+        name: "📎 Drive",
+        value: mechaData.driveLink
+          ? `[Abrir capítulo](${mechaData.driveLink})`
+          : "N/A",
+        inline: false,
+      },
+      {
+        name: "⏱️ Data",
+        value: now.toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }),
+        inline: true,
+      },
+    ],
+    thumbnail: mechaData.seriesThumbnail
+      ? { url: mechaData.seriesThumbnail }
+      : undefined,
+    timestamp: now.toISOString(),
+  };
+
+  if (mechaData.errorMessage) {
+    embed.fields.push({
+      name: "🧨 Erro",
+      value: mechaData.errorMessage,
+      inline: false,
+    });
+  }
+
+  await sendDiscordEmbed(channelId, embed);
 }

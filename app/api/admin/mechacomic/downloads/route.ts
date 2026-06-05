@@ -3,11 +3,15 @@ import { prisma } from "@/lib/db";
 import {
   downloadAndProcessChapter,
   CryptoProcessor,
+  getAccountInfo,
 } from "@/lib/mechacomic/engine";
 import { processAndStitchImages } from "@/lib/mechacomic/image-processor";
 import { GoogleDriveUploader } from "@/lib/mechacomic/drive";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";import { createMechaComicLog } from '@/lib/mechacomic/logger';import fs from "fs";
+import { authOptions } from "@/lib/auth";
+import { createMechaComicLog } from '@/lib/mechacomic/logger';
+import { sendMechaComicLog } from '@/lib/discord-logger';
+import fs from "fs";
 import path from "path";
 import os from "os";
 const archiver = require("archiver");
@@ -104,6 +108,12 @@ async function processDownload(
   stitchMode: boolean,
   userId: string,
 ) {
+  let chapter: any = null;
+  let fullChapterName = "Desconhecido";
+  let accountInfo: any = null;
+  let userRecord: any = null;
+  let driveLink: string | null = null;
+
   try {
     await (prisma as any).mecha_downloads.update({
       where: { id: downloadId },
@@ -116,7 +126,7 @@ async function processDownload(
       stitchMode,
     });
 
-    const chapter = await (prisma as any).mecha_chapters.findUnique({
+    chapter = await (prisma as any).mecha_chapters.findUnique({
       where: { id: chapterId },
       include: { series: true },
     });
@@ -199,7 +209,7 @@ async function processDownload(
       "Sem_Titulo";
 
     // Combina número e título, limpando os parênteses do final (ex: (15) -> "")
-    let fullChapterName = (chapter.chapter_number || "Cap").trim();
+    fullChapterName = (chapter.chapter_number || "Cap").trim();
     if (chapter.chapter_title) {
       const cleanTitle = chapter.chapter_title.replace(/\s*\(\d+\)\s*$/, "").trim();
       fullChapterName = `${fullChapterName} - ${cleanTitle}`;
@@ -231,7 +241,7 @@ async function processDownload(
     // 5. Upload para Google Drive (Modo Pasta com imagens individuais)
     const drive = await GoogleDriveUploader.create();
     // Você pode colocar o ID da pasta raiz do seu drive aqui se quiser, ou deixar vazio para jogar na raiz
-    const driveLink = await drive.uploadChapterImages(
+    driveLink = await drive.uploadChapterImages(
       savedFiles,
       site,
       seriesSafe,
@@ -247,10 +257,53 @@ async function processDownload(
       data: { status: "completed", drive_link: driveLink },
     });
 
+    accountInfo = await getAccountInfo();
+    userRecord = await (prisma as any).users.findUnique({
+      where: { id: userId },
+    });
+
     await createMechaComicLog(userId, 'download-completed', {
       downloadId,
       chapterId,
       driveLink,
+      series: {
+        id: chapter.series.id,
+        title: chapter.series.title,
+        thumbnail: chapter.series.cover_url,
+      },
+      chapter: {
+        title: chapter.chapter_title || null,
+        number: chapter.chapter_number || null,
+        fullTitle: fullChapterName,
+        cost: chapter.cost || null,
+      },
+      mechaAccount: {
+        username: accountInfo?.username || null,
+        currentPoints: accountInfo?.points || null,
+      },
+      user: {
+        id: userId,
+        discordUsername: userRecord?.discord_username || null,
+        profileIcon: userRecord?.discord_avatar || null,
+      },
+      downloadedAt: new Date().toISOString(),
+    });
+
+    await sendMechaComicLog({
+      userId,
+      seriesTitle: chapter.series.title,
+      seriesThumbnail: chapter.series.cover_url,
+      chapterNumber: chapter.chapter_number || null,
+      chapterTitle: chapter.chapter_title || null,
+      chapterFullTitle: fullChapterName,
+      cost: chapter.cost || null,
+      driveLink,
+      mechaAccountUsername: accountInfo?.username || null,
+      mechaPoints: accountInfo?.points || null,
+      downloadedAt: new Date().toISOString(),
+      discordUsername: userRecord?.discord_username || null,
+      profileIcon: userRecord?.discord_avatar || null,
+      status: "completed",
     });
   } catch (e: any) {
     console.error(`Erro no download ${downloadId}:`, e);
@@ -262,6 +315,23 @@ async function processDownload(
       downloadId,
       chapterId,
       error: e.message,
+    });
+    await sendMechaComicLog({
+      userId,
+      seriesTitle: chapter?.series?.title || "Desconhecido",
+      seriesThumbnail: chapter?.series?.cover_url || null,
+      chapterNumber: chapter?.chapter_number || null,
+      chapterTitle: chapter?.chapter_title || null,
+      chapterFullTitle: fullChapterName,
+      cost: chapter?.cost || null,
+      driveLink: driveLink || null,
+      mechaAccountUsername: accountInfo?.username || null,
+      mechaPoints: accountInfo?.points || null,
+      downloadedAt: new Date().toISOString(),
+      discordUsername: userRecord?.discord_username || null,
+      profileIcon: userRecord?.discord_avatar || null,
+      status: "failed",
+      errorMessage: e.message,
     });
   }
 }
