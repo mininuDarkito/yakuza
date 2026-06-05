@@ -210,10 +210,11 @@ async function processDownload(
       .replace(/[<>"/\\|?*\x00]/g, "")
       .trim();
 
+    const chapterFolderName = `${chapterSafe} [id-${chapter.id}]`;
     const localFolder = path.join(baseSavePath, site, seriesSafe);
     fs.mkdirSync(localFolder, { recursive: true });
 
-    const zipFilePath = path.join(localFolder, `${chapterSafe}.zip`);
+    const zipFilePath = path.join(localFolder, `${chapterSafe}-${chapter.id}.zip`);
     const output = fs.createWriteStream(zipFilePath);
     const archive = new archiver.ZipArchive({ zlib: { level: 9 } });
 
@@ -234,7 +235,7 @@ async function processDownload(
       savedFiles,
       site,
       seriesSafe,
-      chapterSafe,
+      chapterFolderName,
     );
 
     // Limpar temporários apenas da pasta temp

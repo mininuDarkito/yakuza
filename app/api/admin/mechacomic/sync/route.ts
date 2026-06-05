@@ -108,8 +108,20 @@ export async function POST(req: Request) {
             fullChapterName = `${fullChapterName} - ${chapter.chapter_title.trim()}`;
           }
           const chapterSafe = fullChapterName.replace(/:/g, '-').replace(/\s+/g, ' ').replace(/[<>"/\\|?*\x00]/g, '').trim();
+          const chapterFolderName = `${chapterSafe} [id-${chapter.id}]`;
 
-          const driveMatch = driveFolders.find(f => f.name === chapterSafe);
+          const driveMatch = driveFolders.find(f => {
+            const name = f.name || '';
+            return (
+              name === chapterSafe ||
+              name === chapterFolderName ||
+              name === `${chapterSafe}-${chapter.id}` ||
+              name === `${chapterSafe} (${chapter.id})` ||
+              name.startsWith(`${chapterFolderName}`) ||
+              name.startsWith(`${chapterSafe}-${chapter.id}`) ||
+              name.startsWith(`${chapterSafe} (${chapter.id})`)
+            );
+          });
           if (driveMatch) {
             // Verificar se já existe um download
             const existingDownload = await (prisma as any).mecha_downloads.findFirst({

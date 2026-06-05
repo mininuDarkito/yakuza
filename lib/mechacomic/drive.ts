@@ -6,11 +6,31 @@ import { MechaConfigService } from './config-service';
 
 export class GoogleDriveUploader {
   private drive: any;
+  private static folderLocks = new Map<string, Promise<void>>();
 
   static async create(): Promise<GoogleDriveUploader> {
     const uploader = new GoogleDriveUploader();
     await uploader.initialize();
     return uploader;
+  }
+
+  private static async withFolderLock<T>(key: string, fn: () => Promise<T>): Promise<T> {
+    while (GoogleDriveUploader.folderLocks.has(key)) {
+      await GoogleDriveUploader.folderLocks.get(key);
+    }
+
+    let resolveLock: () => void;
+    const lockPromise = new Promise<void>((resolve) => {
+      resolveLock = resolve;
+    });
+    GoogleDriveUploader.folderLocks.set(key, lockPromise);
+
+    try {
+      return await fn();
+    } finally {
+      GoogleDriveUploader.folderLocks.delete(key);
+      resolveLock();
+    }
   }
 
   private async initialize() {
@@ -48,35 +68,38 @@ export class GoogleDriveUploader {
 
   async getOrCreateFolder(folderName: string, parentId?: string): Promise<string> {
     if (!this.drive) throw new Error("Drive não inicializado.");
-    
-    let query = `mimeType='application/vnd.google-apps.folder' and name='${folderName}' and trashed=false`;
-    if (parentId) {
-      query += ` and '${parentId}' in parents`;
-    }
 
-    const res = await this.drive.files.list({
-      q: query,
-      fields: 'files(id, name)'
+    const lockKey = `${parentId || 'root'}:${folderName}`;
+    return await GoogleDriveUploader.withFolderLock(lockKey, async () => {
+      let query = `mimeType='application/vnd.google-apps.folder' and name='${folderName}' and trashed=false`;
+      if (parentId) {
+        query += ` and '${parentId}' in parents`;
+      }
+
+      const res = await this.drive.files.list({
+        q: query,
+        fields: 'files(id, name)'
+      });
+
+      if (res.data.files && res.data.files.length > 0) {
+        return res.data.files[0].id!;
+      }
+
+      const fileMetadata: any = {
+        name: folderName,
+        mimeType: 'application/vnd.google-apps.folder'
+      };
+      if (parentId) {
+        fileMetadata.parents = [parentId];
+      }
+
+      const folder = await this.drive.files.create({
+        requestBody: fileMetadata,
+        fields: 'id'
+      });
+
+      return folder.data.id!;
     });
-
-    if (res.data.files && res.data.files.length > 0) {
-      return res.data.files[0].id!;
-    }
-
-    const fileMetadata: any = {
-      name: folderName,
-      mimeType: 'application/vnd.google-apps.folder'
-    };
-    if (parentId) {
-      fileMetadata.parents = [parentId];
-    }
-
-    const folder = await this.drive.files.create({
-      requestBody: fileMetadata,
-      fields: 'id'
-    });
-
-    return folder.data.id!;
   }
 
   async uploadChapterZip(zipBuffer: Buffer, fileName: string, folderId: string): Promise<string> {
