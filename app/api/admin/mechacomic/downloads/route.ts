@@ -124,7 +124,7 @@ async function processDownload(
     // 2. Baixar imagens e decriptar (Paralelizado por lotes de 15 com retry)
     const pages = jsonData.pages || [];
     const imageBuffers: Buffer[] = [];
-    const BATCH_SIZE = 200;
+    const BATCH_SIZE = 500;
 
     for (let i = 0; i < pages.length; i += BATCH_SIZE) {
       const chunk = pages.slice(i, i + BATCH_SIZE);
