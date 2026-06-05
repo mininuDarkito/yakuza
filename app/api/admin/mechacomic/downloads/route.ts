@@ -220,7 +220,7 @@ async function processDownload(
       .replace(/[<>"/\\|?*\x00]/g, "")
       .trim();
 
-    const chapterFolderName = `${chapterSafe} [id-${chapter.id}]`;
+    const chapterFolderName = chapterSafe;
     const localFolder = path.join(baseSavePath, site, seriesSafe);
     fs.mkdirSync(localFolder, { recursive: true });
 

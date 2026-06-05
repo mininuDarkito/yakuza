@@ -108,7 +108,7 @@ export async function POST(req: Request) {
             fullChapterName = `${fullChapterName} - ${chapter.chapter_title.trim()}`;
           }
           const chapterSafe = fullChapterName.replace(/:/g, '-').replace(/\s+/g, ' ').replace(/[<>"/\\|?*\x00]/g, '').trim();
-          const chapterFolderName = `${chapterSafe} [id-${chapter.id}]`;
+          const chapterFolderName = chapterSafe;
 
           const driveMatch = driveFolders.find(f => {
             const name = f.name || '';
