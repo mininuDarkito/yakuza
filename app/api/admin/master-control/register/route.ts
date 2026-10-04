@@ -27,11 +27,12 @@ function explodeCapitulos(input: string): number[] {
 
 export async function POST(request: Request) {
     const session = await getServerSession(authOptions);
-    if (session?.user?.role !== 'admin') return NextResponse.json({ error: "403" }, { status: 403 });
+    if (!session?.user?.id) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
 
     try {
         const data = await request.json();
         const { user_id, produto_id, valor, capitulosString, data: dataVenda, grupo_id } = data;
+        const targetUserId = session.user.role === 'admin' && user_id ? user_id : session.user.id;
 
         const listaCapitulos = explodeCapitulos(capitulosString);
         
@@ -71,7 +72,7 @@ export async function POST(request: Request) {
                         updated_at
                     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
                 `, [
-                    user_id, 
+                    targetUserId, 
                     produto_id, 
                     grupo_id || null,
                     cap,               
@@ -86,7 +87,7 @@ export async function POST(request: Request) {
             
             // Log no Discord
             await sendVendaLog({
-                userId: user_id,
+                userId: targetUserId,
                 produtoId: produto_id,
                 grupoId: grupo_id,
                 capitulos: listaCapitulos,

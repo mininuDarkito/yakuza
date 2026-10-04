@@ -65,8 +65,8 @@ interface Grupo {
     channel_id: string
 }
 
-export function MasterControl({ usuarios, gruposInitial = [] }: { usuarios: Usuario[], gruposInitial?: Grupo[] }) {
-    const [targetUser, setTargetUser] = useState("")
+export function MasterControl({ usuarios = [], gruposInitial = [] }: { usuarios?: Usuario[], gruposInitial?: Grupo[] }) {
+    const [targetUser, setTargetUser] = useState(usuarios[0]?.id || "")
     const [rawLinks, setRawLinks] = useState("")
     const [rawNames, setRawNames] = useState("")
     const [isIdentifying, setIsIdentifying] = useState(false)
@@ -76,12 +76,23 @@ export function MasterControl({ usuarios, gruposInitial = [] }: { usuarios: Usua
     const [progress, setProgress] = useState(0)
     const [statusText, setStatusText] = useState("")
 
-    // 1. Efeito para buscar TODOS os grupos globais (Ferramenta Admin)
+    // Define targetUser padrão quando a prop usuarios for carregada
     useEffect(() => {
+        if (usuarios.length > 0 && !targetUser) {
+            setTargetUser(usuarios[0].id)
+        }
+    }, [usuarios])
+
+    // Efeito para buscar a lista de grupos caso não tenham sido passados via props
+    useEffect(() => {
+        if (gruposInitial && gruposInitial.length > 0) {
+            setGrupos(gruposInitial);
+            return;
+        }
+
         const fetchTodosGrupos = async () => {
             setIsLoadingGrupos(true);
             try {
-                // Chamada sem userId para disparar a listagem global da API
                 const res = await fetch(`/api/admin/grupos/list`);
 
                 if (!res.ok) throw new Error("Falha ao carregar mapa de grupos");
@@ -90,20 +101,16 @@ export function MasterControl({ usuarios, gruposInitial = [] }: { usuarios: Usua
 
                 if (Array.isArray(data)) {
                     setGrupos(data);
-                } else {
-                    setGrupos([]);
                 }
             } catch (error) {
                 console.error("❌ [YAKUZA ADMIN] Erro ao carregar grupos:", error);
-                toast.error("Erro ao carregar a lista global de grupos.");
-                setGrupos([]);
             } finally {
                 setIsLoadingGrupos(false);
             }
         };
 
         fetchTodosGrupos();
-    }, []); // Executa apenas uma vez ao montar a ferramenta admin
+    }, [gruposInitial]);
 
     // 2. Função para duplicar linha (Mesma série, configurações diferentes)
     const duplicateItem = (item: PreVenda) => {

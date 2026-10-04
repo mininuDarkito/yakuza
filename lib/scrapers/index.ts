@@ -34,11 +34,15 @@ import { scrape as scrapeMrBlue } from "./plataforms/mrblue";
 export async function resolveMetadata(url: string): Promise<ScrapeResult> {
   let result: ScrapeResult;
 
-  if (url.includes("ac.qq.com")) result = await scrapeAcqq(url);
+  const trimmed = url.trim();
+
+  if (trimmed.startsWith('{') || trimmed.includes('"series_item"') || trimmed.includes('"result_code"')) {
+    result = await scrapeKakao(trimmed);
+  } else if (url.includes("ac.qq.com")) result = await scrapeAcqq(url);
   else if (url.includes("manta.net")) result = await scrapeManta(url);
   else if (url.includes("ridibooks.com")) result = await scrapeRidi(url);
   else if (url.includes("kuaikanmanhua.com")) result = await scrapeKkmh(url);
-  else if (url.includes("kakao.com")) result = await scrapeKakao(url);
+  else if (url.includes("kakao.com") || url.includes("kakaopage")) result = await scrapeKakao(url);
   else if (url.includes("mechacomic.jp")) result = await scrapeMecha(url);
   else if (url.includes("piccoma.com")) result = await scrapeBilibili(url);
   else if (url.includes("honto.jp")) result = await scrapeHonto(url);

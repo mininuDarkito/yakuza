@@ -3,9 +3,7 @@ process.env.TZ = 'America/Sao_Paulo';
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'standalone',
-  experimental: {
-    instrumentationHook: true, // Habilita o instrumentation.ts para o cron
-  },
+  // experimental option removed as instrumentation is enabled by default in Next.js 16
   typescript: {
     ignoreBuildErrors: true,
   },

@@ -13,7 +13,7 @@ const produtoSchema = z.object({
   ativo: z.boolean().default(true),
   grupo_id: z.string().uuid("Selecione um grupo global válido"),
   imagem_url: z.string().optional().nullable(),
-  link_serie: z.string().url("URL inválida").optional().nullable(),
+  link_serie: z.union([z.string().url("URL inválida"), z.literal("")]).optional().nullable(),
   plataforma: z.string().optional().nullable(),
 })
 

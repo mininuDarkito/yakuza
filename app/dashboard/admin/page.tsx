@@ -6,16 +6,14 @@ import { AdminGate } from "@/components/dashboard/admin/admin-gate"
 import { UsersTable } from "@/components/dashboard/admin/users-table"
 import { BulkScraperForm } from "@/components/dashboard/admin/BulkScraperForm"
 import { SeriesManager } from "@/components/dashboard/admin/series-manager"
-import { MasterControl } from "@/components/dashboard/admin/MasterControl"
 import { EditVendasAdmin } from "@/components/dashboard/admin/EditVendasAdmin"
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { 
-  ShieldCheck, Users, Landmark, 
+import {
+  ShieldCheck, Users, Landmark,
   Activity, Zap, Calendar, Database, LayoutDashboard,
-  GanttChartSquare, Edit3 
+  Edit3
 } from "lucide-react"
-import { KakaoDownloader } from "@/components/dashboard/admin/downkakaobot"
 import { LezhinDownloader } from "@/components/dashboard/admin/LezhinDownloader"
 import { MechaComicPanel } from "@/components/dashboard/admin/MechaComicPanel"
 
@@ -23,7 +21,7 @@ export const dynamic = "force-dynamic";
 
 export default async function AdminPage() {
   const session = await getServerSession(authOptions)
-  
+
   if (session?.user?.role !== 'admin') {
     redirect("/dashboard")
   }
@@ -68,12 +66,12 @@ export default async function AdminPage() {
   const allUsers = usersRes.rows;
   const allGrupos = gruposRes.rows;
 
-  
+
 
   return (
     <AdminGate>
       <div className="flex flex-col gap-8 p-6 max-w-7xl mx-auto min-h-screen">
-        
+
         {/* HEADER */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/5 pb-6">
           <div className="flex items-center gap-4">
@@ -91,12 +89,9 @@ export default async function AdminPage() {
 
         {/* NAVEGAÇÃO POR ABAS */}
         <Tabs defaultValue="overview" className="space-y-8">
-          <TabsList className="bg-zinc-950 border border-white/10 p-1 h-auto grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 lg:w-fit gap-1">
+          <TabsList className="bg-zinc-950 border border-white/10 p-1 h-auto grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 lg:w-fit gap-1">
             <TabsTrigger value="overview" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-black uppercase text-[10px] py-2">
               <LayoutDashboard className="h-3.5 w-3.5 mr-2" /> Visão Geral
-            </TabsTrigger>
-            <TabsTrigger value="operations" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-black uppercase text-[10px] py-2">
-              <GanttChartSquare className="h-3.5 w-3.5 mr-2" /> Operações
             </TabsTrigger>
             <TabsTrigger value="auditoria" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-black uppercase text-[10px] py-2">
               <Edit3 className="h-3.5 w-3.5 mr-2" /> Ajustes
@@ -115,7 +110,7 @@ export default async function AdminPage() {
             </TabsTrigger>
             <TabsTrigger value="mechacomic" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-black uppercase text-[10px] py-2">
               <Zap className="h-3.5 w-3.5 mr-2" /> MechaComic
-            </TabsTrigger>            
+            </TabsTrigger>
           </TabsList>
 
           {/* ABA 1: OVERVIEW */}
@@ -166,32 +161,23 @@ export default async function AdminPage() {
             </div>
           </TabsContent>
 
-          {/* ABA 2: OPERATIONS */}
-          <TabsContent value="operations" className="space-y-4 animate-in fade-in slide-in-from-top-4 duration-500">
-            <div className="flex items-center gap-2 mb-6 text-primary">
-              <GanttChartSquare className="h-5 w-5" />
-              <h2 className="text-xl font-black uppercase tracking-tighter leading-none italic">Controle Mestre de Injeção</h2>
-            </div>
-            <MasterControl usuarios={allUsers} />
-          </TabsContent>
-
-{/* CONTEÚDO: AUDITORIA (O componente que você atualizou) */}
+          {/* CONTEÚDO: AUDITORIA (O componente que você atualizou) */}
           <TabsContent value="auditoria" className="space-y-4 animate-in slide-in-from-bottom-4 duration-500">
-             <div className="flex flex-col gap-1 mb-4">
-                <h2 className="text-2xl font-black uppercase italic tracking-tighter">Central de Auditoria</h2>
-                <p className="text-zinc-500 text-[10px] font-bold uppercase italic">Corrija lançamentos, vincule grupos e sele o faturamento mensal</p>
-             </div>
+            <div className="flex flex-col gap-1 mb-4">
+              <h2 className="text-2xl font-black uppercase italic tracking-tighter">Central de Auditoria</h2>
+              <p className="text-zinc-500 text-[10px] font-bold uppercase italic">Corrija lançamentos, vincule grupos e sele o faturamento mensal</p>
+            </div>
 
-             {/* IMPORTANTE: Passando todos os usuários e grupos para o Admin poder tudo */}
-             <EditVendasAdmin 
-                usuarios={allUsers} 
-                grupos={allGrupos} 
-             />
+            {/* IMPORTANTE: Passando todos os usuários e grupos para o Admin poder tudo */}
+            <EditVendasAdmin
+              usuarios={allUsers}
+              grupos={allGrupos}
+            />
           </TabsContent>
 
           {/* ABA 4: CATALOG */}
           <TabsContent value="catalog" className="space-y-4 animate-in fade-in slide-in-from-left-4 duration-300">
-             <div className="flex items-center gap-2 mb-6 text-primary">
+            <div className="flex items-center gap-2 mb-6 text-primary">
               <Database className="h-5 w-5" />
               <h2 className="text-xl font-black uppercase tracking-tighter leading-none italic">Gerenciamento de Infraestrutura</h2>
             </div>
@@ -201,14 +187,14 @@ export default async function AdminPage() {
           {/* ABA 5: USERS */}
           <TabsContent value="users" className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
             <h2 className="text-xl font-black uppercase tracking-tight flex items-center gap-2 mb-6 italic text-primary">
-               <Users className="h-5 w-5" /> Ranking de Vendedores
+              <Users className="h-5 w-5" /> Ranking de Vendedores
             </h2>
             <UsersTable users={allUsers} />
           </TabsContent>
 
           {/* ABA 6: INFRASTRUCTURE */}
           <TabsContent value="infrastructure" className="space-y-4 animate-in fade-in zoom-in-95 duration-300">
-             <div className="max-w-2xl">
+            <div className="max-w-2xl">
               <div className="flex items-center gap-2 mb-6">
                 <Zap className="h-5 w-5 text-yellow-500 fill-yellow-500" />
                 <h2 className="text-xl font-black uppercase tracking-tight leading-none italic">Cadastro Automático de Séries</h2>
@@ -228,8 +214,7 @@ export default async function AdminPage() {
           </TabsContent>
 
           <TabsContent value="kakao-bot">
-            <KakaoDownloader/>
-            <LezhinDownloader/>
+            <LezhinDownloader />
           </TabsContent>
 
           <TabsContent value="mechacomic" className="space-y-4 animate-in fade-in zoom-in-95 duration-300">

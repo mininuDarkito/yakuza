@@ -5,7 +5,7 @@ import { authOptions } from "@/lib/auth";
 
 /**
  * API: Listagem de Grupos Yakuza Raws
- * Filtra grupos baseados em vínculos (UserSeries) ou hierarquia administrativa.
+ * Filtra grupos baseados em vínculos (UserSeries) ou retorna lista global para seleção.
  */
 export async function GET(request: Request) {
     try {
@@ -26,7 +26,7 @@ export async function GET(request: Request) {
         const isOwner = session.user?.id === targetId;
 
         // 2. Regras de Segurança Yakuza
-        // Se um usuário comum tenta passar o ID de outra pessoa na URL, bloqueamos.
+        // Se um usuário comum tenta passar o ID de outra pessoa na URL para filtrar vínculos alheios, bloqueamos.
         if (!isAdmin && targetId && !isOwner) {
             return NextResponse.json({ error: "Acesso negado: Você não pode listar grupos de outro membro." }, { status: 403 });
         }
@@ -34,11 +34,11 @@ export async function GET(request: Request) {
         let query = "";
         let values: any[] = [];
 
-        // 3. Lógica de Consulta Híbrida
+        // 3. Lógica de Consulta
         if (targetId) {
-            /** * LISTAGEM POR VÍNCULO (Para Vendedores/Staff)
+            /** 
+             * LISTAGEM POR VÍNCULO (Para Vendedores/Staff)
              * Busca apenas grupos onde o usuário tem obras vinculadas ativas.
-             * Isso evita que o formulário de venda mostre grupos onde ele não trabalha.
              */
             query = `
                 SELECT DISTINCT 
@@ -53,13 +53,10 @@ export async function GET(request: Request) {
             `;
             values = [targetId];
         } else {
-            /** * LISTAGEM GLOBAL (Apenas para Admins)
-             * Permite ver todos os canais registrados na Yakuza Raws para gestão.
+            /** 
+             * LISTAGEM GLOBAL
+             * Permite listar todos os canais registrados para formulários de seleção e cadastros.
              */
-            if (!isAdmin) {
-                return NextResponse.json({ error: "Apenas administradores podem ver a listagem global." }, { status: 403 });
-            }
-
             query = `
                 SELECT id, nome, channel_id, user_id as owner_id 
                 FROM grupos 

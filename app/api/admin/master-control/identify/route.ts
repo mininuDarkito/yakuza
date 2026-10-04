@@ -7,13 +7,16 @@ import { resolveMetadata } from "@/lib/scrapers";
 export async function POST(request: Request) {
     const session = await getServerSession(authOptions);
     
-    // 1. Bloqueio de Segurança: Apenas Admins
-    if (session?.user?.role !== 'admin') {
-        return NextResponse.json({ error: "Não autorizado" }, { status: 403 });
+    if (!session?.user?.id) {
+        return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
     }
 
     try {
-        const { links = [], nomes = [], user_id } = await request.json();
+        const body = await request.json();
+        const { links = [], nomes = [], user_id } = body;
+        
+        // Se não for admin, força a usar seu próprio ID
+        const targetUserId = session.user.role === 'admin' && user_id ? user_id : session.user.id;
         
         // 1. Processamento de LINKS (Existente)
         const resultadosLinks = await Promise.all(links.map(async (url: string) => {
@@ -42,7 +45,7 @@ export async function POST(request: Request) {
                     }
                 }
 
-                if (produto) return await attachMetadata(produto, user_id);
+                if (produto) return await attachMetadata(produto, targetUserId);
                 return null;
             } catch (err: any) {
                 console.error(`❌ Erro ao identificar link ${url}:`, err.message);
