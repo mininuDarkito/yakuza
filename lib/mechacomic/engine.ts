@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import { load } from 'cheerio';
+import axios from 'axios';
 import { MechaConfigService } from './config-service';
 
 export class CryptoProcessor {
@@ -26,6 +27,52 @@ export class CryptoProcessor {
   }
 }
 
+function extractCoverUrl($: any): string {
+  let coverUrl = $('meta[name="twitter:image"]').attr('content') || '';
+  
+  if (!coverUrl || coverUrl.includes('re-ogp_logo') || coverUrl.includes('img_not_available')) {
+    coverUrl = $('meta[property="og:image"]').attr('content') || '';
+  }
+  
+  if (!coverUrl || coverUrl.includes('re-ogp_logo') || coverUrl.includes('img_not_available')) {
+    coverUrl = $('img.jacket_image_l').attr('src') || $('img.jacket_image_l').attr('data-src') || '';
+  }
+  
+  if (!coverUrl || coverUrl.includes('img_not_available') || coverUrl.includes('re-ogp_logo')) {
+    $('img').each((_: any, el: any) => {
+      const src = $(el).attr('src') || $(el).attr('data-src');
+      if (src && src.includes('/images/book/') && !src.includes('common')) {
+        coverUrl = src;
+      }
+    });
+  }
+
+  if (coverUrl.startsWith('//')) {
+    coverUrl = `https:${coverUrl}`;
+  }
+
+  if (coverUrl.includes('img_not_available') || coverUrl.includes('re-ogp_logo')) {
+    return '';
+  }
+
+  return coverUrl;
+}
+
+async function saveUpdatedStorageState(context: any) {
+  try {
+    const updatedState = await context.storageState();
+    if (updatedState && updatedState.cookies && updatedState.cookies.length > 0) {
+      const hasMechaCookie = updatedState.cookies.some((c: any) => c.domain && c.domain.includes('mechacomic.jp'));
+      if (hasMechaCookie) {
+        await MechaConfigService.setConfig('playwright_session', updatedState);
+        console.log("🔄 [Session Sync] Cookies de sessão do MechaComic atualizados e salvos no banco.");
+      }
+    }
+  } catch (e) {
+    console.error('Erro ao salvar storage state atualizado:', e);
+  }
+}
+
 export async function getSeriesInfo(url: string) {
   const seriesInfo = {
     title: '',
@@ -38,13 +85,93 @@ export async function getSeriesInfo(url: string) {
   let currentPage = 1;
   let hasNextPage = true;
 
+  // 1. Tenta buscar informações da série via requisições HTTP ultra-rápidas (sem abrir o navegador Chromium)
+  try {
+    while (hasNextPage) {
+      const pageUrl = `${baseUrl}?page=${currentPage}`;
+      const response = await axios.get(pageUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+          'Accept-Language': 'ja-JP,ja;q=0.9,en-US;q=0.8,en;q=0.7',
+        },
+        timeout: 10000
+      });
+
+      const $ = load(response.data);
+
+      if (currentPage === 1) {
+        const rawTitle = $('.p-bookInfo_title h1').text().trim() || 'Título Desconhecido';
+        seriesInfo.title = rawTitle.replace(/\s*[【\(].*?[】\)]/g, '').trim();
+        seriesInfo.cover_url = extractCoverUrl($);
+
+        const pointsValue = $('.colorRed.txt16').first().text().trim();
+        if (pointsValue) {
+          seriesInfo.points = pointsValue;
+        }
+      }
+
+      const items = $('li.p-chapterList_item');
+      if (items.length === 0) break;
+
+      items.each((_, el) => {
+        const item = $(el);
+        const checkbox = item.find('input[name="chapter_ids[]"]');
+        if (!checkbox.length) return;
+
+        const chapterId = checkbox.val();
+        const chNoText = item.find('.p-chapterList_no').text().replace(/\s+/g, ' ').trim().split(' ')[0] || '??';
+        const rawChNameText = item.find('.p-chapterList_name').text().replace(/\s+/g, ' ').trim() || '??';
+        const chNameText = rawChNameText.replace(/\s*\(\d+\)\s*$/, '').trim();
+
+        const btnAreaText = item.find('.p-chapterList_btnArea').text().trim();
+        let status = 'paid';
+        let cost = '0';
+
+        if (btnAreaText.includes('pt')) {
+          cost = btnAreaText.replace(/\D/g, '');
+          status = 'paid';
+        } else if (btnAreaText.includes('無料') && !item.find('.c-icon-freeSerial').length) {
+          status = 'free';
+        } else if (btnAreaText.includes('読む')) {
+          status = 'purchased';
+        } else {
+          status = 'wait_free';
+        }
+
+        seriesInfo.chapters.push({
+          id: chapterId,
+          number: chNoText,
+          title: chNameText,
+          status,
+          cost
+        });
+      });
+
+      const nextBtn = $('.pagination .next_page');
+      if (nextBtn.length && !nextBtn.hasClass('disabled')) {
+        currentPage++;
+      } else {
+        hasNextPage = false;
+      }
+    }
+
+    if (seriesInfo.title && seriesInfo.chapters.length > 0) {
+      console.log(`⚡ [HTTP Scrape OK] ${seriesInfo.title}: ${seriesInfo.chapters.length} capítulos obtidos via HTTP em milissegundos.`);
+      return seriesInfo;
+    }
+  } catch (httpError: any) {
+    console.warn('⚠️ [HTTP Scrape Fallback] Falha HTTP ao consultar série, usando Playwright como fallback:', httpError?.message || httpError);
+    // Limpa parcial para o fallback recomeçar do zero
+    seriesInfo.title = '';
+    seriesInfo.cover_url = '';
+    seriesInfo.chapters = [];
+    currentPage = 1;
+    hasNextPage = true;
+  }
+
+  // 2. Fallback Playwright apenas se a requisição HTTP direta falhar por algum motivo (sem usar storageState para não conflitar com a sessão ativa)
   const browser = await chromium.launch({ headless: true });
   const contextOptions: any = { locale: 'ja-JP' };
-  
-  const storageState = await MechaConfigService.getConfig('playwright_session');
-  if (storageState) {
-    contextOptions.storageState = storageState;
-  }
   
   const context = await browser.newContext(contextOptions);
   const page = await context.newPage();
@@ -52,7 +179,7 @@ export async function getSeriesInfo(url: string) {
   try {
     while (hasNextPage) {
       const pageUrl = `${baseUrl}?page=${currentPage}`;
-      console.log(`Lendo página: ${pageUrl}`);
+      console.log(`Lendo página via Playwright: ${pageUrl}`);
       await page.goto(pageUrl, { waitUntil: 'domcontentloaded' });
 
       try {
@@ -68,9 +195,8 @@ export async function getSeriesInfo(url: string) {
       if (currentPage === 1) {
         const rawTitle = $('.p-bookInfo_title h1').text().trim() || 'Título Desconhecido';
         seriesInfo.title = rawTitle.replace(/\s*[【\(].*?[】\)]/g, '').trim();
-        seriesInfo.cover_url = $('img.jacket_image_l').attr('src') || '';
+        seriesInfo.cover_url = extractCoverUrl($);
         
-        // Extrair pontos do cabeçalho
         const pointsValue = $('.colorRed.txt16').first().text().trim();
         if (pointsValue) {
           seriesInfo.points = pointsValue;
@@ -88,7 +214,6 @@ export async function getSeriesInfo(url: string) {
         const chapterId = checkbox.val();
         const chNoText = item.find('.p-chapterList_no').text().replace(/\s+/g, ' ').trim().split(' ')[0] || '??';
         const rawChNameText = item.find('.p-chapterList_name').text().replace(/\s+/g, ' ').trim() || '??';
-        // Remove parênteses com números no final, ex: "Capítulo(15)" -> "Capítulo"
         const chNameText = rawChNameText.replace(/\s*\(\d+\)\s*$/, '').trim();
         
         const btnAreaText = item.find('.p-chapterList_btnArea').text().trim();
@@ -239,6 +364,7 @@ export async function downloadAndProcessChapter(chapterId: string, seriesName: s
     
     await page.waitForURL('**/viewer/index.html**', { timeout: 15000 });
     await new Promise(r => setTimeout(r, 5000));
+    await saveUpdatedStorageState(context);
   } catch (e) {
     return { error: "O leitor não carregou a tempo." };
   } finally {
@@ -303,19 +429,27 @@ export async function loginAndSaveSession(email: string, pass: string) {
 
 // Função para buscar informações da conta MechaComic
 export async function getAccountInfo() {
-  const browser = await chromium.launch({ headless: true });
-  const contextOptions: any = { locale: 'ja-JP' };
-
   const storageState = await MechaConfigService.getConfig('playwright_session');
-  if (storageState) {
-    contextOptions.storageState = storageState;
+  if (!storageState) {
+    return null;
   }
+
+  const browser = await chromium.launch({ headless: true });
+  const contextOptions: any = { locale: 'ja-JP', storageState };
+
   const context = await browser.newContext(contextOptions);
   const page = await context.newPage();
 
   try {
     await page.goto('https://mechacomic.jp/account', { waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(1000);
+
+    const currentUrl = page.url();
+    if (currentUrl.includes('/session/') || currentUrl.includes('/login')) {
+      console.warn("⚠️ [getAccountInfo] Sessão expirou ou foi encerrada no MechaComic.");
+      return null;
+    }
+
     const html = await page.content();
     const $ = load(html);
 
@@ -325,6 +459,8 @@ export async function getAccountInfo() {
     if (!pointsValue && !username) {
       return null;
     }
+
+    await saveUpdatedStorageState(context);
 
     return {
       points: pointsValue || '0',

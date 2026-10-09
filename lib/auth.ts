@@ -3,11 +3,14 @@ import DiscordProvider from "next-auth/providers/discord"
 import { prisma } from "./db"
 
 export const authOptions: NextAuthOptions = {
+  secret: process.env.NEXTAUTH_SECRET,
   providers: [
     DiscordProvider({
       clientId: process.env.DISCORD_CLIENT_ID!,
       clientSecret: process.env.DISCORD_CLIENT_SECRET!,
+      issuer: "https://discord.com",
       authorization: { params: { scope: 'identify email guilds' } },
+      checks: ['state'],
     }),
   ],
 

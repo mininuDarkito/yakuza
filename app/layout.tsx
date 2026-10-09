@@ -3,6 +3,7 @@ import { Analytics } from '@vercel/analytics/next'
 import { SessionProvider } from '@/components/providers/session-provider'
 import { ThemeProvider } from '@/components/theme-provider' // Importação do novo Provider
 import { Toaster } from '@/components/ui/sonner'
+import Particles from '@/components/Particles'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -35,7 +36,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR" suppressHydrationWarning>
-      <body className="font-sans antialiased">
+      <body className="font-sans antialiased relative min-h-screen">
         <SessionProvider>
           <ThemeProvider
             attribute="class"
@@ -43,6 +44,18 @@ export default function RootLayout({
             enableSystem
             disableTransitionOnChange
           >
+            <div className="fixed inset-0 -z-10 pointer-events-none overflow-hidden">
+              <Particles
+                particleColors={["#ffffff", "#6366f1", "#a855f7"]}
+                particleCount={250}
+                particleSpread={12}
+                speed={0.15}
+                particleBaseSize={100}
+                moveParticlesOnHover={true}
+                alphaParticles={false}
+                disableRotation={false}
+              />
+            </div>
             {children}
             <Toaster />
           </ThemeProvider>

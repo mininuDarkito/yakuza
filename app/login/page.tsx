@@ -6,8 +6,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 
 export default function LoginPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center bg-background/50 backdrop-blur-sm p-4">
+      <Card className="w-full max-w-md bg-card/80 backdrop-blur-md border-border/50 shadow-2xl">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold">Yakuza Rwa</CardTitle>
           <CardDescription>

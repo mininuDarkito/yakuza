@@ -4,7 +4,7 @@ import { useState, useEffect, use } from "react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Download, Loader2, Link as LinkIcon, RefreshCw, FileImage } from "lucide-react";
+import { Download, Loader2, Link as LinkIcon, RefreshCw, FileImage, ExternalLink, Copy, Send } from "lucide-react";
 import Link from "next/link";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -17,7 +17,7 @@ export default function SeriesDetailsPage({ params }: { params: Promise<{ series
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  
+
   const initialPage = parseInt(searchParams.get('page') || '1');
 
   const [chapters, setChapters] = useState<any[]>([]);
@@ -30,6 +30,41 @@ export default function SeriesDetailsPage({ params }: { params: Promise<{ series
   const [totalPages, setTotalPages] = useState(1);
   const [totalChapters, setTotalChapters] = useState(0);
   const [accountInfo, setAccountInfo] = useState<{ points: string; username?: string }>({ points: '...', username: undefined });
+  const [sendingDiscordId, setSendingDiscordId] = useState<string | null>(null);
+
+  const handleSendToDiscordChannel = async (chapter: any, driveLink: string) => {
+    setSendingDiscordId(chapter.id);
+    const toastId = toast.loading("Enviando para o(s) canal(is) do Discord...");
+    try {
+      const series = chapter.series;
+      const cover = series?.cover_url?.startsWith("//") ? `https:${series.cover_url}` : series?.cover_url;
+      const chapterFull = `${chapter.chapter_number || ''} ${chapter.chapter_title ? '- ' + chapter.chapter_title : ''}`.trim() || `Capítulo ${chapter.chapter_number}`;
+
+      const res = await fetch('/api/admin/mechacomic/send-discord', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          seriesId: seriesId,
+          seriesTitle: series?.title || 'Série',
+          coverUrl: cover,
+          chapterFullTitle: chapterFull,
+          driveLink,
+          groupIds: series?.grupo_ids || []
+        })
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        toast.success(data.message || "Mensagem enviada com sucesso para o canal do grupo!", { id: toastId });
+      } else {
+        toast.error(data.error || "Erro ao enviar para o Discord", { id: toastId });
+      }
+    } catch {
+      toast.error("Erro de conexão ao enviar mensagem", { id: toastId });
+    } finally {
+      setSendingDiscordId(null);
+    }
+  };
 
   const fetchPoints = async () => {
     try {
@@ -41,7 +76,7 @@ export default function SeriesDetailsPage({ params }: { params: Promise<{ series
           username: data.username || undefined,
         });
       }
-    } catch (e) {}
+    } catch (e) { }
   };
 
   // Sincroniza a URL quando a página muda
@@ -79,7 +114,7 @@ export default function SeriesDetailsPage({ params }: { params: Promise<{ series
   const toggleSelectAll = () => {
     const allIdsOnPage = chapters.map(c => c.id);
     const allSelected = allIdsOnPage.every(id => selectedIds.includes(id));
-    
+
     if (allSelected) {
       setSelectedIds(selectedIds.filter(id => !allIdsOnPage.includes(id)));
     } else {
@@ -190,9 +225,6 @@ export default function SeriesDetailsPage({ params }: { params: Promise<{ series
             {syncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
             Sincronizar (Mecha & Drive)
           </Button>
-          <Button onClick={fetchChapters} variant="outline" size="icon">
-            <RefreshCw className="w-4 h-4" />
-          </Button>
           <Button onClick={handleDownload} disabled={selectedIds.length === 0 || downloading}>
             {downloading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />}
             Baixar ({selectedIds.length})
@@ -257,25 +289,46 @@ export default function SeriesDetailsPage({ params }: { params: Promise<{ series
                       {latestDownload?.status === 'pending' && <span className="text-yellow-500 flex items-center gap-1 text-[11px] font-black uppercase"><Loader2 className="w-3 h-3 animate-spin" /> Na Fila</span>}
                       {latestDownload?.status === 'processing' && <span className="text-blue-500 flex items-center gap-1 text-[11px] font-black uppercase"><Loader2 className="w-3 h-3 animate-spin" /> Processando</span>}
                       {latestDownload?.status === 'completed' && (
-                        <div className="flex items-center gap-3">
-                          <a href={latestDownload.drive_link} target="_blank" rel="noreferrer" className="text-green-500 flex items-center gap-1 hover:underline font-black text-[11px] uppercase">
-                            <Download className="w-3 h-3" /> Drive
+                        <div className="flex flex-wrap items-center gap-2">
+                          <a
+                            href={latestDownload.drive_link}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1 rounded border border-emerald-500/40 bg-emerald-500/10 px-2 py-1 text-[10px] font-black uppercase text-emerald-400 hover:bg-emerald-500/20 transition-colors"
+                          >
+                            <ExternalLink className="w-3 h-3" /> Drive
                           </a>
                           <Button
                             size="sm"
                             variant="outline"
-                            className="h-6 px-2 text-[10px] font-black uppercase text-zinc-300 border-zinc-700 bg-zinc-900/50 hover:bg-zinc-800"
+                            className="h-6 px-2 text-[10px] font-black uppercase text-zinc-300 border-zinc-700 bg-zinc-900/50 hover:bg-zinc-800 gap-1"
                             onClick={(e) => {
                               e.stopPropagation();
                               const series = chapter.series;
                               const cover = series?.cover_url?.startsWith("//") ? `https:${series.cover_url}` : series?.cover_url;
-                              const chapterFull = `${chapter.chapter_number || ''} ${chapter.chapter_title ? '- ' + chapter.chapter_title : ''}`.trim();
-                              const text = `Série: [${series?.title || 'Série Desconhecida'}](${cover})\n\nCap: ${chapterFull}\n\nLink Drive: ${latestDownload.drive_link}`;
+                              const chapterFull = `${chapter.chapter_number || ''} ${chapter.chapter_title ? '- ' + chapter.chapter_title : ''}`.trim() || `Capítulo ${chapter.chapter_number}`;
+                              const text = `serie: [${series?.title || 'Série'}](${cover || ''})\ncap: ${chapterFull}\n\nlink drive: ${latestDownload.drive_link}`;
                               navigator.clipboard.writeText(text);
-                              toast.success("Mensagem copiada para o Discord!");
+                              toast.success("Modelo de mensagem do Discord copiado!");
                             }}
                           >
-                            Copiar Discord
+                            <Copy className="w-3 h-3" /> Discord (Copiar)
+                          </Button>
+                          <Button
+                            size="sm"
+                            className="h-6 px-2 text-[10px] font-black uppercase text-indigo-300 bg-indigo-500/20 border border-indigo-500/40 hover:bg-indigo-500 hover:text-white gap-1 transition-colors"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleSendToDiscordChannel(chapter, latestDownload.drive_link);
+                            }}
+                            disabled={sendingDiscordId === chapter.id}
+                          >
+                            {sendingDiscordId === chapter.id ? (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            ) : (
+                              <Send className="w-3 h-3" />
+                            )}
+                            Enviar pro Canal do Grupo
                           </Button>
                         </div>
                       )}

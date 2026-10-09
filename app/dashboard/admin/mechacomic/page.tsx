@@ -15,6 +15,7 @@ export default function MechaComicDashboard() {
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [seriesList, setSeriesList] = useState<any[]>([]);
+  const [allGroups, setAllGroups] = useState<any[]>([]);
   const [fetching, setFetching] = useState(true);
   const [search, setSearch] = useState("");
   const [dayFilter, setDayFilter] = useState<number[]>([]);
@@ -130,8 +131,21 @@ export default function MechaComicDashboard() {
     }
   };
 
+  const fetchGroups = async () => {
+    try {
+      const res = await fetch('/api/grupos');
+      if (res.ok) {
+        const data = await res.json();
+        setAllGroups(Array.isArray(data) ? data : []);
+      }
+    } catch (e) {
+      console.error("Erro ao carregar grupos.");
+    }
+  };
+
   useEffect(() => {
     fetchSeries();
+    fetchGroups();
     checkSession();
     fetchDailyReleases();
     fetchLogs();
@@ -495,7 +509,7 @@ export default function MechaComicDashboard() {
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
           {filteredSeries.map((series) => (
-            <SeriesCard key={series.id} series={series} onUpdate={fetchSeries} />
+            <SeriesCard key={series.id} series={series} groups={allGroups} onUpdate={fetchSeries} />
           ))}
           {seriesList.length === 0 ? (
             <div className="col-span-full py-12 text-center text-muted-foreground">

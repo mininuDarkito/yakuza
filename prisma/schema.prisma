@@ -193,6 +193,7 @@ model mecha_series {
   title          String
   cover_url      String?
   schedule_days  Int[]     @default([]) // 0=Dom, 1=Seg, 2=Ter, 3=Qua, 4=Qui, 5=Sex, 6=Sáb
+  grupo_ids      String[]  @default([])
   last_auto_sync DateTime? @db.Timestamptz(6)
   created_at     DateTime? @default(now()) @db.Timestamptz(6)
   updated_at     DateTime? @default(now()) @db.Timestamptz(6)

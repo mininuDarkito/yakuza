@@ -16,6 +16,61 @@ import path from "path";
 import os from "os";
 const archiver = require("archiver");
 
+// Limite de downloads simultâneos para evitar estouro de memória, CPU e travamentos no MechaComic
+const MAX_CONCURRENT_DOWNLOADS = 4;
+let isProcessingQueue = false;
+
+async function triggerQueueProcessor() {
+  if (isProcessingQueue) return;
+  isProcessingQueue = true;
+
+  try {
+    while (true) {
+      // 1. Conta quantos downloads estão sendo processados agora
+      const activeCount = await (prisma as any).mecha_downloads.count({
+        where: { status: "processing" },
+      });
+
+      if (activeCount >= MAX_CONCURRENT_DOWNLOADS) {
+        break; // Limite de concorrência atingido
+      }
+
+      // 2. Busca o próximo download pendente mais antigo
+      const nextDownload = await (prisma as any).mecha_downloads.findFirst({
+        where: { status: "pending" },
+        orderBy: { created_at: "asc" },
+      });
+
+      if (!nextDownload) {
+        break; // Nenhum item pendente na fila
+      }
+
+      // 3. Marca imediatamente como processing para não ser pego por outra iteração
+      await (prisma as any).mecha_downloads.update({
+        where: { id: nextDownload.id },
+        data: { status: "processing" },
+      });
+
+      // 4. Inicia o download do item (ele próprio acionará a fila no final)
+      processDownload(
+        nextDownload.id,
+        nextDownload.chapter_id,
+        nextDownload.stitch_mode,
+        nextDownload.user_id,
+      ).catch((err) => {
+        console.error("Erro na execução da fila:", err);
+      });
+
+      // Pequena pausa antes de checar se é possível pegar mais um até atingir o limite
+      await new Promise((r) => setTimeout(r, 500));
+    }
+  } catch (error) {
+    console.error("Erro no gerenciador da fila de downloads:", error);
+  } finally {
+    isProcessingQueue = false;
+  }
+}
+
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
@@ -30,7 +85,7 @@ export async function GET(req: Request) {
     }
 
     const downloads = await (prisma as any).mecha_downloads.findMany({
-      take: 20,
+      take: 50,
       orderBy: { created_at: "desc" },
       include: {
         chapter: { include: { series: true } },
@@ -45,8 +100,14 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  let userId = '';
+  let chapterIds: string[] = [];
+  let stitchMode = true;
+
   try {
-    const { chapterIds, stitchMode = true } = await req.json();
+    const body = await req.json();
+    chapterIds = body.chapterIds;
+    stitchMode = body.stitchMode ?? true;
 
     const session = await getServerSession(authOptions);
     if (!session || !session.user || !session.user.id) {
@@ -55,7 +116,7 @@ export async function POST(req: Request) {
         { status: 401 },
       );
     }
-    const userId = session.user.id;
+    userId = session.user.id;
 
     if (!chapterIds || !chapterIds.length) {
       return NextResponse.json(
@@ -64,7 +125,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // Cria os registros de download como 'pending'
+    // Cria os registros de download como 'pending' na fila
     const downloads = [];
     for (const chapterId of chapterIds) {
       const download = await (prisma as any).mecha_downloads.create({
@@ -76,18 +137,23 @@ export async function POST(req: Request) {
         },
       });
       downloads.push(download);
-
-      // Inicia o processamento em background (fire and forget)
-      processDownload(download.id, chapterId, stitchMode, userId).catch(console.error);
     }
 
     await createMechaComicLog(userId, 'download-api-created', {
       chapterIds,
       stitchMode,
       downloadIds: downloads.map((download) => download.id),
+      totalQueued: downloads.length,
     });
 
-    return NextResponse.json({ success: true, downloads });
+    // Aciona a fila gerenciada (processa em segundo plano respeitando o limite)
+    triggerQueueProcessor().catch(console.error);
+
+    return NextResponse.json({
+      success: true,
+      message: `${downloads.length} capítulo(s) adicionado(s) à fila de downloads!`,
+      downloads,
+    });
   } catch (error: any) {
     console.error("Erro ao iniciar download:", error);
     if (userId) {
@@ -115,11 +181,6 @@ async function processDownload(
   let driveLink: string | null = null;
 
   try {
-    await (prisma as any).mecha_downloads.update({
-      where: { id: downloadId },
-      data: { status: "processing" },
-    });
-
     await createMechaComicLog(userId, 'download-processing', {
       downloadId,
       chapterId,
@@ -150,7 +211,7 @@ async function processDownload(
     const jsonData = result.jsonData;
     const cryptoKey = result.cryptoKey;
 
-    // 2. Baixar imagens e decriptar (Paralelizado por lotes de 15 com retry)
+    // 2. Baixar imagens e decriptar (Paralelizado com retry)
     const pages = jsonData.pages || [];
     const imageBuffers: Buffer[] = [];
     const BATCH_SIZE = 500;
@@ -200,15 +261,13 @@ async function processDownload(
       stitchMode,
     );
 
-    // 4. Salvar ZIP localmente (Lógica do server.py)
-    // Usamos variável de ambiente ou fallback para evitar erro de rastreio no build
+    // 4. Salvar ZIP localmente
     const baseSavePath = process.env.MECHA_SAVE_PATH || "C:\\YakuzaRaws";
     const site = "mechacomic";
     const seriesSafe =
       chapter.series.title.replace(/[<>:"/\\|?*\x00]/g, "").trim() ||
       "Sem_Titulo";
 
-    // Combina número e título, limpando os parênteses do final (ex: (15) -> "")
     fullChapterName = (chapter.chapter_number || "Cap").trim();
     if (chapter.chapter_title) {
       const cleanTitle = chapter.chapter_title.replace(/\s*\(\d+\)\s*$/, "").trim();
@@ -238,9 +297,8 @@ async function processDownload(
       archive.finalize();
     });
 
-    // 5. Upload para Google Drive (Modo Pasta com imagens individuais)
+    // 5. Upload para Google Drive
     const drive = await GoogleDriveUploader.create();
-    // Você pode colocar o ID da pasta raiz do seu drive aqui se quiser, ou deixar vazio para jogar na raiz
     driveLink = await drive.uploadChapterImages(
       savedFiles,
       site,
@@ -248,7 +306,7 @@ async function processDownload(
       chapterFolderName,
     );
 
-    // Limpar temporários apenas da pasta temp
+    // Limpar temporários
     fs.rmSync(tempDir, { recursive: true, force: true });
 
     // 6. Atualizar status final
@@ -333,6 +391,9 @@ async function processDownload(
       status: "failed",
       errorMessage: e.message,
     });
+  } finally {
+    // SEMPRE aciona a fila ao terminar um item (sucesso ou erro) para processar o próximo pendente
+    triggerQueueProcessor().catch(console.error);
   }
 }
 
@@ -342,7 +403,7 @@ async function fetchImageWithRetry(imgUrl: string, maxRetries = 4, delayMs = 150
     attempt++;
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 12000); // 12 segundos de limite de conexão
+      const timeoutId = setTimeout(() => controller.abort(), 12000);
 
       const resp = await fetch(imgUrl, { signal: controller.signal });
       clearTimeout(timeoutId);
@@ -364,4 +425,3 @@ async function fetchImageWithRetry(imgUrl: string, maxRetries = 4, delayMs = 150
     }
   }
 }
-

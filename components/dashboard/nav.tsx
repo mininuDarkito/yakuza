@@ -26,7 +26,7 @@ import {
   Users,
   Bot
 } from "lucide-react"
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTrigger } from "@/components/ui/sheet"
 import { useState, useEffect } from "react"
 import { ModeToggle } from "./mode-toggle" // Ajuste o caminho conforme necessário
 
@@ -82,7 +82,7 @@ export function DashboardNav({ user }: NavProps) {
         {/* DESKTOP NAV */}
         <div className="mr-4 hidden md:flex">
           <Link href="/dashboard" className="mr-6 flex items-center gap-2">
-            <ShoppingCart className="h-6 w-6 text-primary" />
+
             <span className="font-black uppercase italic tracking-tighter">Yakuza Raws</span>
           </Link>
           <nav className="flex items-center gap-1">
@@ -112,9 +112,12 @@ export function DashboardNav({ user }: NavProps) {
             </Button>
           </SheetTrigger>
           <SheetContent side="left" className="w-64 bg-background">
+            <SheetHeader className="sr-only">
+              <SheetTitle>Menu de Navegação</SheetTitle>
+              <SheetDescription>Navegação principal do painel Yakuza Raws</SheetDescription>
+            </SheetHeader>
             <div className="flex flex-col gap-6 py-4">
               <Link href="/dashboard" className="flex items-center gap-2" onClick={() => setOpen(false)}>
-                <ShoppingCart className="h-6 w-6 text-primary" />
                 <span className="font-black uppercase italic tracking-tighter">Yakuza Raws</span>
               </Link>
               <nav className="flex flex-col gap-2">
@@ -139,7 +142,6 @@ export function DashboardNav({ user }: NavProps) {
 
         <div className="flex flex-1 items-center justify-between md:justify-end gap-2 md:gap-4">
           <Link href="/dashboard" className="flex items-center gap-2 md:hidden">
-            <ShoppingCart className="h-6 w-6 text-primary" />
             <span className="font-black uppercase italic tracking-tighter">Yakuza Raws</span>
           </Link>
 
@@ -167,7 +169,7 @@ export function DashboardNav({ user }: NavProps) {
                   </div>
                 </div>
                 <DropdownMenuSeparator />
-                
+
                 {user.role === 'admin' && (
                   <DropdownMenuItem asChild className="cursor-pointer font-black uppercase italic text-[10px] text-primary focus:bg-primary/5">
                     <Link href="/dashboard/admin">
@@ -180,7 +182,7 @@ export function DashboardNav({ user }: NavProps) {
                 <DropdownMenuItem asChild className="cursor-pointer font-black uppercase italic text-[10px] text-primary focus:bg-primary/5">
                   <Link href="/dashboard/configuracoes">
                     <Settings className="mr-2 h-4 w-4" />
-                      Meu Perfil
+                    Meu Perfil
                   </Link>
 
                 </DropdownMenuItem>

@@ -16,6 +16,7 @@ export async function GET() {
         title: true,
         cover_url: true,
         schedule_days: true,
+        grupo_ids: true,
         last_auto_sync: true,
         created_at: true,
         updated_at: true,
@@ -24,6 +25,28 @@ export async function GET() {
         }
       }
     });
+
+    // Auto-repara capas ausentes em segundo plano para não travar a API
+    const itemsNeedingRepair = series.filter((item: any) => !item.cover_url || item.cover_url.includes('img_not_available') || item.cover_url.includes('re-ogp_logo'));
+    if (itemsNeedingRepair.length > 0) {
+      (async () => {
+        for (const item of itemsNeedingRepair) {
+          try {
+            console.log(`[Auto-repair BG] Atualizando capa da série: ${item.title}`);
+            const info = await getSeriesInfo(item.url);
+            if (info && info.cover_url) {
+              await (prisma as any).mecha_series.update({
+                where: { id: item.id },
+                data: { cover_url: info.cover_url }
+              });
+              console.log(`[Auto-repair BG] Capa atualizada com sucesso: ${info.cover_url}`);
+            }
+          } catch (e) {
+            console.error(`[Auto-repair BG] Erro ao atualizar capa da série ${item.id}:`, e);
+          }
+        }
+      })().catch(() => {});
+    }
 
     const session = await MechaConfigService.getConfig('playwright_session');
     const hasAuth = !!session;
