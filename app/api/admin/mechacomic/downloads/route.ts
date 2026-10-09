@@ -17,7 +17,7 @@ import os from "os";
 const archiver = require("archiver");
 
 // Limite de downloads simultâneos para evitar estouro de memória, CPU e travamentos no MechaComic
-const MAX_CONCURRENT_DOWNLOADS = 4;
+const MAX_CONCURRENT_DOWNLOADS = 10;
 let isProcessingQueue = false;
 
 async function triggerQueueProcessor() {
@@ -25,6 +25,19 @@ async function triggerQueueProcessor() {
   isProcessingQueue = true;
 
   try {
+    // Limpa downloads que ficaram travados em 'processing' há mais de 5 minutos (ex: reinício de dev server ou travamento)
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+    await (prisma as any).mecha_downloads.updateMany({
+      where: {
+        status: "processing",
+        updated_at: { lt: fiveMinutesAgo },
+      },
+      data: {
+        status: "failed",
+        error: "Download interrompido por tempo limite de processamento ou reinício do servidor.",
+      },
+    });
+
     while (true) {
       // 1. Conta quantos downloads estão sendo processados agora
       const activeCount = await (prisma as any).mecha_downloads.count({
@@ -62,7 +75,7 @@ async function triggerQueueProcessor() {
       });
 
       // Pequena pausa antes de checar se é possível pegar mais um até atingir o limite
-      await new Promise((r) => setTimeout(r, 500));
+      await new Promise((r) => setTimeout(r, 300));
     }
   } catch (error) {
     console.error("Erro no gerenciador da fila de downloads:", error);
@@ -73,6 +86,9 @@ async function triggerQueueProcessor() {
 
 export async function GET(req: Request) {
   try {
+    // Aciona a fila sempre que houver consultas/polling para evitar trava em 'pending'
+    triggerQueueProcessor().catch(console.error);
+
     const { searchParams } = new URL(req.url);
     const chapterId = searchParams.get("chapterId");
 
