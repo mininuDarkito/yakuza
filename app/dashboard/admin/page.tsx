@@ -4,18 +4,15 @@ import { redirect } from "next/navigation"
 import { sql } from "@/lib/db"
 import { AdminGate } from "@/components/dashboard/admin/admin-gate"
 import { UsersTable } from "@/components/dashboard/admin/users-table"
-import { BulkScraperForm } from "@/components/dashboard/admin/BulkScraperForm"
 import { SeriesManager } from "@/components/dashboard/admin/series-manager"
 import { EditVendasAdmin } from "@/components/dashboard/admin/EditVendasAdmin"
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
-  ShieldCheck, Users, Landmark,
-  Activity, Zap, Calendar, Database, LayoutDashboard,
+  ShieldCheck, Users,
+  Activity, Database, LayoutDashboard,
   Edit3
 } from "lucide-react"
-import { LezhinDownloader } from "@/components/dashboard/admin/LezhinDownloader"
-import { MechaComicPanel } from "@/components/dashboard/admin/MechaComicPanel"
+import { OverviewPanel } from "@/components/dashboard/admin/OverviewPanel"
 
 export const dynamic = "force-dynamic";
 
@@ -26,8 +23,8 @@ export default async function AdminPage() {
     redirect("/dashboard")
   }
 
-  // CORREÇÃO: 4 Promessas separadas para 4 resultados distintos
-  const [statsRes, monthlyRes, usersRes, gruposRes] = await Promise.all([
+  // 5 Promessas separadas para resultados do painel
+  const [statsRes, monthlyRes, usersRes, gruposRes, seriesSalesRes] = await Promise.all([
     // 1. Estatísticas Gerais
     sql.query(`
       SELECT 
@@ -35,16 +32,17 @@ export default async function AdminPage() {
         (SELECT COUNT(*)::int FROM produtos) as total_produtos,
         (SELECT COALESCE(SUM(preco_total), 0) FROM vendas) as gmv_total
     `),
-    // 2. Performance Mensal
+    // 2. Performance Mensal por Ano, Usuário e Grupo
     sql.query(`
       SELECT 
-        TO_CHAR(data_venda AT TIME ZONE 'UTC', 'MM') as mes_index,
-        TO_CHAR(data_venda AT TIME ZONE 'UTC', 'Mon') as mes_nome,
-        SUM(preco_total) as total
+        EXTRACT(YEAR FROM data_venda AT TIME ZONE 'UTC')::int as ano,
+        EXTRACT(MONTH FROM data_venda AT TIME ZONE 'UTC')::int as mes_index,
+        user_id,
+        grupo_id,
+        SUM(preco_total)::float as total
       FROM vendas
-      WHERE data_venda >= DATE_TRUNC('year', CURRENT_DATE)
-      GROUP BY mes_index, mes_nome
-      ORDER BY mes_index ASC
+      GROUP BY ano, mes_index, user_id, grupo_id
+      ORDER BY ano DESC, mes_index ASC
     `),
     // 3. Ranking de Usuários
     sql.query(`
@@ -57,16 +55,35 @@ export default async function AdminPage() {
       GROUP BY u.id
       ORDER BY faturamento_total DESC
     `),
-    // 4. Lista de Grupos (Para o EditVendasAdmin)
-    sql.query(`SELECT id, nome FROM grupos ORDER BY nome ASC`)
+    // 4. Lista de Grupos (Para o EditVendasAdmin e OverviewPanel)
+    sql.query(`SELECT id, nome FROM grupos ORDER BY nome ASC`),
+    // 5. Ranking de Séries com maior venda por mês e filtros
+    sql.query(`
+      SELECT 
+        p.id as produto_id,
+        p.nome,
+        p.descricao,
+        p.imagem_url,
+        EXTRACT(YEAR FROM COALESCE(v.data_venda, v.created_at, NOW()) AT TIME ZONE 'UTC')::int as ano,
+        EXTRACT(MONTH FROM COALESCE(v.data_venda, v.created_at, NOW()) AT TIME ZONE 'UTC')::int as mes_index,
+        v.user_id,
+        v.grupo_id,
+        g.nome as grupo_nome,
+        COUNT(v.id)::int as qtd,
+        COALESCE(SUM(v.preco_total), 0)::float as receita
+      FROM vendas v
+      JOIN produtos p ON v.produto_id = p.id
+      LEFT JOIN grupos g ON v.grupo_id = g.id
+      GROUP BY p.id, p.nome, p.descricao, p.imagem_url, ano, mes_index, v.user_id, v.grupo_id, g.nome
+      ORDER BY qtd DESC
+    `)
   ]);
 
   const stats = statsRes.rows[0];
-  const performanceMensal = monthlyRes.rows;
+  const monthlySales = monthlyRes.rows;
   const allUsers = usersRes.rows;
   const allGrupos = gruposRes.rows;
-
-
+  const seriesSales = seriesSalesRes.rows;
 
   return (
     <AdminGate>
@@ -89,7 +106,7 @@ export default async function AdminPage() {
 
         {/* NAVEGAÇÃO POR ABAS */}
         <Tabs defaultValue="overview" className="space-y-8">
-          <TabsList className="bg-zinc-950 border border-white/10 p-1 h-auto grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 lg:w-fit gap-1">
+          <TabsList className="bg-zinc-950 border border-white/10 p-1 h-auto grid grid-cols-2 md:grid-cols-4 lg:w-fit gap-1">
             <TabsTrigger value="overview" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-black uppercase text-[10px] py-2">
               <LayoutDashboard className="h-3.5 w-3.5 mr-2" /> Visão Geral
             </TabsTrigger>
@@ -102,80 +119,36 @@ export default async function AdminPage() {
             <TabsTrigger value="users" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-black uppercase text-[10px] py-2">
               <Users className="h-3.5 w-3.5 mr-2" /> Vendedores
             </TabsTrigger>
-            <TabsTrigger value="infrastructure" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-black uppercase text-[10px] py-2">
-              <Zap className="h-3.5 w-3.5 mr-2" /> Ingestão
-            </TabsTrigger>
-            <TabsTrigger value="kakao-bot" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-black uppercase text-[10px] py-2">
-              <Zap className="h-3.5 w-3.5 mr-2" /> kakao-bot
-            </TabsTrigger>
-            <TabsTrigger value="mechacomic" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-black uppercase text-[10px] py-2">
-              <Zap className="h-3.5 w-3.5 mr-2" /> MechaComic
-            </TabsTrigger>
           </TabsList>
 
           {/* ABA 1: OVERVIEW */}
           <TabsContent value="overview" className="space-y-8 animate-in fade-in zoom-in-95 duration-300">
-            <div className="grid gap-6 md:grid-cols-3">
-              <Card className="bg-zinc-950 text-white border-none shadow-2xl relative overflow-hidden group">
-                <Landmark className="absolute -right-4 -bottom-4 h-24 w-24 opacity-10" />
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-[10px] font-black uppercase opacity-60 tracking-widest text-primary italic">Volume Bruto (GMV)</CardTitle>
-                  <div className="text-4xl font-black tracking-tighter text-emerald-400">
-                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'USD' }).format(stats.gmv_total)}
-                  </div>
-                </CardHeader>
-              </Card>
-
-              <Card className="bg-zinc-900/10 border-2 border-white/5">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-[10px] font-black uppercase tracking-widest text-zinc-500 italic">Total Sellers</CardTitle>
-                  <div className="text-3xl font-black tracking-tighter text-white">{stats.total_users}</div>
-                </CardHeader>
-              </Card>
-
-              <Card className="bg-zinc-900/10 border-2 border-white/5">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-[10px] font-black uppercase tracking-widest text-zinc-500 italic">Séries Ativas</CardTitle>
-                  <div className="text-3xl font-black tracking-tighter text-white">{stats.total_produtos}</div>
-                </CardHeader>
-              </Card>
-            </div>
-
-            <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <Calendar className="h-5 w-5 text-primary" />
-                <h2 className="text-xl font-black uppercase tracking-tighter italic">Performance Mensal ({new Date().getFullYear()})</h2>
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                {performanceMensal.map((m) => (
-                  <Card key={m.mes_index} className="border-2 border-white/5 bg-zinc-900/20 backdrop-blur-sm">
-                    <CardContent className="p-4 text-center">
-                      <p className="text-[10px] font-black uppercase text-zinc-500 mb-1">{m.mes_nome}</p>
-                      <p className="text-lg font-black text-emerald-500">
-                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'USD' }).format(m.total)}
-                      </p>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </div>
+            <OverviewPanel
+              totais={{
+                users: stats.total_users,
+                produtos: stats.total_produtos,
+              }}
+              monthlySales={monthlySales}
+              vendedores={allUsers}
+              grupos={allGrupos}
+              seriesSales={seriesSales}
+            />
           </TabsContent>
 
-          {/* CONTEÚDO: AUDITORIA (O componente que você atualizou) */}
+          {/* CONTEÚDO: AUDITORIA */}
           <TabsContent value="auditoria" className="space-y-4 animate-in slide-in-from-bottom-4 duration-500">
             <div className="flex flex-col gap-1 mb-4">
               <h2 className="text-2xl font-black uppercase italic tracking-tighter">Central de Auditoria</h2>
               <p className="text-zinc-500 text-[10px] font-bold uppercase italic">Corrija lançamentos, vincule grupos e sele o faturamento mensal</p>
             </div>
 
-            {/* IMPORTANTE: Passando todos os usuários e grupos para o Admin poder tudo */}
             <EditVendasAdmin
               usuarios={allUsers}
               grupos={allGrupos}
             />
           </TabsContent>
 
-          {/* ABA 4: CATALOG */}
+          {/* ABA 3: CATALOG */}
           <TabsContent value="catalog" className="space-y-4 animate-in fade-in slide-in-from-left-4 duration-300">
             <div className="flex items-center gap-2 mb-6 text-primary">
               <Database className="h-5 w-5" />
@@ -184,45 +157,12 @@ export default async function AdminPage() {
             <SeriesManager />
           </TabsContent>
 
-          {/* ABA 5: USERS */}
+          {/* ABA 4: USERS */}
           <TabsContent value="users" className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
             <h2 className="text-xl font-black uppercase tracking-tight flex items-center gap-2 mb-6 italic text-primary">
               <Users className="h-5 w-5" /> Ranking de Vendedores
             </h2>
             <UsersTable users={allUsers} />
-          </TabsContent>
-
-          {/* ABA 6: INFRASTRUCTURE */}
-          <TabsContent value="infrastructure" className="space-y-4 animate-in fade-in zoom-in-95 duration-300">
-            <div className="max-w-2xl">
-              <div className="flex items-center gap-2 mb-6">
-                <Zap className="h-5 w-5 text-yellow-500 fill-yellow-500" />
-                <h2 className="text-xl font-black uppercase tracking-tight leading-none italic">Cadastro Automático de Séries</h2>
-              </div>
-              <Card className="border-primary/20 shadow-xl bg-zinc-950">
-                <CardHeader>
-                  <CardTitle className="text-sm font-bold uppercase tracking-widest text-primary italic">Cadastro Rápido</CardTitle>
-                  <CardDescription className="text-[10px] font-bold uppercase text-zinc-500 italic">
-                    Insira múltiplas obras de uma só vez no Painel Yakuza.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <BulkScraperForm />
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="kakao-bot">
-            <LezhinDownloader />
-          </TabsContent>
-
-          <TabsContent value="mechacomic" className="space-y-4 animate-in fade-in zoom-in-95 duration-300">
-            <div className="flex items-center gap-2 mb-6 text-primary">
-              <Zap className="h-5 w-5" />
-              <h2 className="text-xl font-black uppercase tracking-tighter leading-none italic">MechaComic Engine</h2>
-            </div>
-            <MechaComicPanel />
           </TabsContent>
         </Tabs>
       </div>

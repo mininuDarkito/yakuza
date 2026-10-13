@@ -27,7 +27,7 @@ export async function GET() {
           gte: startOfDayUTC
         }
       },
-      select: { id: true, title: true, cover_url: true }
+      select: { id: true, title: true, cover_url: true, grupo_ids: true }
     });
 
     if (syncedSeriesToday.length === 0) {

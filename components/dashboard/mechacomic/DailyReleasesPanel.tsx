@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Download, Loader2, CalendarDays, ExternalLink } from "lucide-react";
+import { Download, Loader2, CalendarDays, ExternalLink, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
@@ -16,6 +16,7 @@ interface NewChapter {
     id: string;
     title: string;
     cover_url: string | null;
+    grupo_ids?: string[];
   };
   downloads?: { status: string; drive_link: string | null }[];
 }
@@ -34,6 +35,7 @@ const STATUS_LABELS: Record<string, { label: string; color: string }> = {
 
 function ChapterCard({ chapter, onRefresh }: { chapter: NewChapter; onRefresh: () => void }) {
   const [downloading, setDownloading] = useState(false);
+  const [sendingDiscord, setSendingDiscord] = useState(false);
   const cover = chapter.series.cover_url?.startsWith("//")
     ? `https:${chapter.series.cover_url}`
     : chapter.series.cover_url;
@@ -69,6 +71,38 @@ function ChapterCard({ chapter, onRefresh }: { chapter: NewChapter; onRefresh: (
     const text = `Série: [${chapter.series.title}](${cover})\n\nCap: ${chapterFull}\n\nLink Drive: ${latestDownload?.drive_link}`;
     navigator.clipboard.writeText(text);
     toast.success("Mensagem copiada para o Discord!");
+  };
+
+  const handleSendToDiscordChannel = async () => {
+    if (!latestDownload?.drive_link) return;
+
+    setSendingDiscord(true);
+    const toastId = toast.loading("Enviando mensagem para o(s) canal(is) do Discord...");
+    try {
+      const res = await fetch("/api/admin/mechacomic/send-discord", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          seriesId: chapter.series.id,
+          seriesTitle: chapter.series.title,
+          coverUrl: cover,
+          chapterFullTitle: chapterFull,
+          driveLink: latestDownload.drive_link,
+          groupIds: chapter.series.grupo_ids || []
+        })
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        toast.success(data.message || "Mensagem enviada com sucesso para o canal do grupo!", { id: toastId });
+      } else {
+        toast.error(data.error || "Erro ao enviar para o Discord", { id: toastId });
+      }
+    } catch {
+      toast.error("Erro de conexão ao enviar mensagem", { id: toastId });
+    } finally {
+      setSendingDiscord(false);
+    }
   };
 
   return (
@@ -116,7 +150,17 @@ function ChapterCard({ chapter, onRefresh }: { chapter: NewChapter; onRefresh: (
               className="h-7 px-2 text-[9px] font-black uppercase border-zinc-700 text-zinc-400 hover:text-zinc-100"
               onClick={handleCopyDiscord}
             >
-              Discord
+              Copiar
+            </Button>
+            <Button
+              size="sm"
+              className="h-7 px-2 text-[9px] font-black uppercase text-indigo-300 bg-indigo-500/20 border border-indigo-500/40 hover:bg-indigo-500 hover:text-white flex items-center gap-1 transition-colors"
+              onClick={handleSendToDiscordChannel}
+              disabled={sendingDiscord}
+              title="Enviar direto para o canal do grupo vinculados a esta obra"
+            >
+              {sendingDiscord ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
+              Enviar pro Grupo
             </Button>
           </>
         ) : latestDownload?.status === "pending" || latestDownload?.status === "processing" ? (

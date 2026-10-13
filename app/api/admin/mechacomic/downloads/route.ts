@@ -17,7 +17,7 @@ import os from "os";
 const archiver = require("archiver");
 
 // Limite de downloads simultâneos para evitar estouro de memória, CPU e travamentos no MechaComic
-const MAX_CONCURRENT_DOWNLOADS = 10;
+const MAX_CONCURRENT_DOWNLOADS = 5;
 let isProcessingQueue = false;
 
 async function triggerQueueProcessor() {
