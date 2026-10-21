@@ -189,7 +189,7 @@ export function DashboardNav({ user }: NavProps) {
 
                 <DropdownMenuItem
                   className="cursor-pointer text-destructive focus:text-destructive focus:bg-destructive/5 font-black uppercase italic text-[10px]"
-                  onClick={() => signOut({ callbackUrl: "/login" })}
+                  onClick={() => signOut({ callbackUrl: "/logar" })}
                 >
                   <LogOut className="mr-2 h-4 w-4" />
                   Encerrar Sessão

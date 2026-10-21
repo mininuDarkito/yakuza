@@ -10,7 +10,7 @@ export default async function ExportarPage() {
 
   // Verificação de segurança
   if (!userId) {
-    redirect("/login")
+    redirect("/logar")
   }
 
   // No driver 'pg' local, usamos o método .query e passamos o userId no array [$1]

@@ -13,7 +13,7 @@ export default async function NovaVendaPage(props: {
   const userId = session?.user?.id
   const { produto_id } = await props.searchParams
 
-  if (!userId) redirect("/login")
+  if (!userId) redirect("/logar")
 
   // --- VALIDAÇÃO DE UUID ---
   const isValidUuid = (id: any): id is string => {
@@ -31,9 +31,9 @@ export default async function NovaVendaPage(props: {
       WHERE g.user_id = $1 OR mg.user_id = $1
       LIMIT 1`, [userId]
     )
-    
+
     const grupoPadrao = grupoRes.rows[0]?.id
-    
+
     if (grupoPadrao) {
       // Garante que o usuário seja membro do grupo
       await sql.query(`
@@ -88,21 +88,21 @@ export default async function NovaVendaPage(props: {
 
   return (
     <div className="container mx-auto p-4 md:p-10 space-y-10">
-      
+
       {/* HEADER SEMÂNTICO */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div className="flex items-center gap-4">
-            <div className="bg-primary/10 p-4 rounded-[2rem] border border-primary/20">
-                <ShoppingCart className="text-primary h-8 w-8" />
-            </div>
-            <div>
-                <h1 className="text-5xl font-black uppercase tracking-tighter text-foreground italic leading-none">
-                  TERMINAL DE <span className="text-primary">LANÇAMENTO</span>
-                </h1>
-                <p className="text-muted-foreground font-bold uppercase text-[10px] tracking-[0.3em] mt-2">
-                    Yakuza Raws • Gestão de Faturamento v3.0
-                </p>
-            </div>
+          <div className="bg-primary/10 p-4 rounded-[2rem] border border-primary/20">
+            <ShoppingCart className="text-primary h-8 w-8" />
+          </div>
+          <div>
+            <h1 className="text-5xl font-black uppercase tracking-tighter text-foreground italic leading-none">
+              TERMINAL DE <span className="text-primary">LANÇAMENTO</span>
+            </h1>
+            <p className="text-muted-foreground font-bold uppercase text-[10px] tracking-[0.3em] mt-2">
+              Yakuza Raws • Gestão de Faturamento v3.0
+            </p>
+          </div>
         </div>
 
         <div className="hidden md:flex items-center gap-2 bg-muted/50 px-4 py-2 rounded-full border border-border">
@@ -115,14 +115,14 @@ export default async function NovaVendaPage(props: {
         {/* COMPONENTE PRINCIPAL (O FORMULÁRIO QUE CRIAMOS) */}
         <Suspense fallback={
           <div className="flex flex-col items-center justify-center p-24 gap-4 bg-card rounded-[3rem] border border-border">
-              <Loader2 className="animate-spin text-primary h-12 w-12" />
-              <p className="font-black uppercase italic text-xs tracking-widest opacity-50">Carregando Interface...</p>
+            <Loader2 className="animate-spin text-primary h-12 w-12" />
+            <p className="font-black uppercase italic text-xs tracking-widest opacity-50">Carregando Interface...</p>
           </div>
         }>
-          <VendaRegistroForm 
-            grupos={grupos} 
+          <VendaRegistroForm
+            grupos={grupos}
             obrasVinculadas={obrasVinculadas}
-            initialProdutoId={isValidUuid(produto_id) ? produto_id : undefined} 
+            initialProdutoId={isValidUuid(produto_id) ? produto_id : undefined}
           />
         </Suspense>
       </div>

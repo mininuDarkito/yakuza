@@ -13,7 +13,7 @@ export default async function GerenciarGruposPage() {
   const session = await getServerSession(authOptions)
 
   if (!session) {
-    redirect("/login")
+    redirect("/logar")
   }
 
   if (session.user.role !== "admin") {

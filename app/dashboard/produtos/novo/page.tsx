@@ -4,7 +4,7 @@ import { sql } from "@/lib/db"
 import { redirect } from "next/navigation"
 import { Suspense } from "react"
 
-import { ProdutoForm } from "@/components/dashboard/produtos/ProdutoForm" 
+import { ProdutoForm } from "@/components/dashboard/produtos/ProdutoForm"
 import { TabelaGlobal } from "@/components/dashboard/produtos/tabela-global"
 import { MasterControl } from "@/components/dashboard/admin/MasterControl"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
 
 export default async function NovoProdutoPage() {
   const session = await getServerSession(authOptions)
-  if (!session?.user?.id) redirect("/login")
+  if (!session?.user?.id) redirect("/logar")
 
   // Busca todos os grupos do sistema
   const gruposRes = await sql.query(`
@@ -44,7 +44,7 @@ export default async function NovoProdutoPage() {
 
   return (
     <div className="flex flex-col gap-8 p-6 lg:p-10 max-w-7xl mx-auto min-h-screen">
-      
+
       {/* HEADER DA PÁGINA */}
       <div className="flex items-center justify-between gap-4 border-b border-white/5 pb-6">
         <div>
@@ -56,18 +56,18 @@ export default async function NovoProdutoPage() {
           </p>
         </div>
       </div>
-      
+
       {/* NAVEGAÇÃO ENTRE CADASTRO INDIVIDUAL E CONTROLE MESTRE */}
       <Tabs defaultValue="individual" className="space-y-8">
         <TabsList className="bg-zinc-950 border border-white/10 p-1 h-auto grid grid-cols-1 sm:grid-cols-2 w-full sm:w-fit gap-1">
-          <TabsTrigger 
-            value="individual" 
+          <TabsTrigger
+            value="individual"
             className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-black uppercase text-xs py-2.5 px-6"
           >
             <Layers className="h-4 w-4 mr-2" /> Cadastro / Vínculo de Obra
           </TabsTrigger>
-          <TabsTrigger 
-            value="master" 
+          <TabsTrigger
+            value="master"
             className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-black uppercase text-xs py-2.5 px-6"
           >
             <Zap className="h-4 w-4 mr-2" /> Controle Mestre (Injeção em Massa)
@@ -86,7 +86,7 @@ export default async function NovoProdutoPage() {
             }>
               <ProdutoForm grupos={grupos} />
             </Suspense>
-            
+
             <div className="hidden xl:block">
               <TabelaGlobal />
             </div>

@@ -21,11 +21,11 @@ export const authOptions: NextAuthOptions = {
           id: string
           username: string
           avatar: string | null
-          banner: string | null 
+          banner: string | null
           email?: string
         }
 
-        const bannerUrl = discordProfile.banner 
+        const bannerUrl = discordProfile.banner
           ? `https://cdn.discordapp.com/banners/${discordProfile.id}/${discordProfile.banner}.png?size=1024`
           : null;
 
@@ -68,7 +68,7 @@ export const authOptions: NextAuthOptions = {
       if (account) {
         token.accessToken = account.access_token
       }
-      
+
       if (user || token.sub) {
         const dbUser = await prisma.users.findUnique({
           where: { discord_id: token.sub as string },
@@ -89,13 +89,13 @@ export const authOptions: NextAuthOptions = {
         try {
           const dbUser = await prisma.users.findUnique({
             where: { discord_id: token.sub as string },
-            select: { 
-              id: true, 
-              discord_id: true, 
-              discord_username: true, 
-              discord_avatar: true, 
-              discord_banner: true, 
-              role: true 
+            select: {
+              id: true,
+              discord_id: true,
+              discord_username: true,
+              discord_avatar: true,
+              discord_banner: true,
+              role: true
             }
           })
 
@@ -119,7 +119,7 @@ export const authOptions: NextAuthOptions = {
     },
   },
 
-  pages: { signIn: "/login" },
+  pages: { signIn: "/logar" },
   session: { strategy: "jwt" },
 }
 

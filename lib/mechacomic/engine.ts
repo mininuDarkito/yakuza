@@ -13,12 +13,12 @@ export class CryptoProcessor {
       const key = Buffer.from(keyHex, 'hex');
       const iv = data.subarray(0, 16);
       const encrypted = data.subarray(16);
-      
+
       // O tamanho da chave determina se é AES-128, AES-192 ou AES-256
       const algorithm = key.length === 32 ? 'aes-256-cbc' : (key.length === 24 ? 'aes-192-cbc' : 'aes-128-cbc');
       const decipher = crypto.createDecipheriv(algorithm, key, iv);
       decipher.setAutoPadding(true);
-      
+
       return Buffer.concat([decipher.update(encrypted), decipher.final()]);
     } catch (e) {
       console.error('Erro na desencriptação MechaComic:', e);
@@ -29,15 +29,15 @@ export class CryptoProcessor {
 
 function extractCoverUrl($: any): string {
   let coverUrl = $('meta[name="twitter:image"]').attr('content') || '';
-  
+
   if (!coverUrl || coverUrl.includes('re-ogp_logo') || coverUrl.includes('img_not_available')) {
     coverUrl = $('meta[property="og:image"]').attr('content') || '';
   }
-  
+
   if (!coverUrl || coverUrl.includes('re-ogp_logo') || coverUrl.includes('img_not_available')) {
     coverUrl = $('img.jacket_image_l').attr('src') || $('img.jacket_image_l').attr('data-src') || '';
   }
-  
+
   if (!coverUrl || coverUrl.includes('img_not_available') || coverUrl.includes('re-ogp_logo')) {
     $('img').each((_: any, el: any) => {
       const src = $(el).attr('src') || $(el).attr('data-src');
@@ -172,7 +172,7 @@ export async function getSeriesInfo(url: string) {
   // 2. Fallback Playwright apenas se a requisição HTTP direta falhar por algum motivo (sem usar storageState para não conflitar com a sessão ativa)
   const browser = await chromium.launch({ headless: true });
   const contextOptions: any = { locale: 'ja-JP' };
-  
+
   const context = await browser.newContext(contextOptions);
   const page = await context.newPage();
 
@@ -196,7 +196,7 @@ export async function getSeriesInfo(url: string) {
         const rawTitle = $('.p-bookInfo_title h1').text().trim() || 'Título Desconhecido';
         seriesInfo.title = rawTitle.replace(/\s*[【\(].*?[】\)]/g, '').trim();
         seriesInfo.cover_url = extractCoverUrl($);
-        
+
         const pointsValue = $('.colorRed.txt16').first().text().trim();
         if (pointsValue) {
           seriesInfo.points = pointsValue;
@@ -210,12 +210,12 @@ export async function getSeriesInfo(url: string) {
         const item = $(el);
         const checkbox = item.find('input[name="chapter_ids[]"]');
         if (!checkbox.length) return;
-        
+
         const chapterId = checkbox.val();
         const chNoText = item.find('.p-chapterList_no').text().replace(/\s+/g, ' ').trim().split(' ')[0] || '??';
         const rawChNameText = item.find('.p-chapterList_name').text().replace(/\s+/g, ' ').trim() || '??';
         const chNameText = rawChNameText.replace(/\s*\(\d+\)\s*$/, '').trim();
-        
+
         const btnAreaText = item.find('.p-chapterList_btnArea').text().trim();
         let status = 'paid';
         let cost = '0';
@@ -258,21 +258,21 @@ export async function buyAndAccessChapter(page: any, chapterId: string) {
   const chapterUrl = `https://mechacomic.jp/chapters/${chapterId}`;
   console.log(`Navegando para: ${chapterUrl}`);
   await page.goto(chapterUrl, { waitUntil: 'domcontentloaded' });
-  
+
   await new Promise(r => setTimeout(r, 2000));
   console.log(`URL atual após navegação: ${page.url()}`);
-  
+
   if (page.url().includes('viewer/index.html')) {
     console.log("✅ Redirecionado direto para o leitor!");
     return true;
   }
-  
+
   const readBtn = await page.$('input[type="submit"][value="読む"]');
   if (readBtn) {
     await readBtn.click();
     return true;
   }
-  
+
   const readFreeBtn = await page.$('input[type="submit"][value="無料で読む"]');
   if (readFreeBtn) {
     await readFreeBtn.click();
@@ -303,13 +303,13 @@ export async function buyAndAccessChapter(page: any, chapterId: string) {
       console.warn("❌ Botão de comprar com pontos está desabilitado.");
     }
   }
-  
+
   const genericRead = await page.$('a.c-btn-free, a.c-btn-buy, input.c-btn-read-end');
   if (genericRead) {
     await genericRead.click();
     return true;
   }
-  
+
   console.warn("❌ Nenhum botão de ação válido foi encontrado na página.");
   return false;
 }
@@ -323,7 +323,7 @@ export async function downloadAndProcessChapter(chapterId: string, seriesName: s
 
   const browser = await chromium.launch({ headless: true });
   const contextOptions: any = { locale: 'ja-JP', ignoreHTTPSErrors: true };
-  
+
   const storageState = await MechaConfigService.getConfig('playwright_session');
   if (storageState) {
     contextOptions.storageState = storageState;
@@ -344,7 +344,7 @@ export async function downloadAndProcessChapter(chapterId: string, seriesName: s
             cryptoKey = data.cryptokey;
             console.log("🔑 Chave criptográfica extraída do Manifest!");
           }
-        } catch (e) {}
+        } catch (e) { }
       } else if (url.includes('contents') && url.includes('.json')) {
         const data = await response.json();
         if (data.pages && data.images) {
@@ -353,7 +353,7 @@ export async function downloadAndProcessChapter(chapterId: string, seriesName: s
           console.log("📄 JSON de imagens interceptado!");
         }
       }
-    } catch (e) {}
+    } catch (e) { }
   });
 
   try {
@@ -361,7 +361,7 @@ export async function downloadAndProcessChapter(chapterId: string, seriesName: s
     if (!success) {
       return { error: "Falha na aquisição (Botão não encontrado ou sem pontos)." };
     }
-    
+
     await page.waitForURL('**/viewer/index.html**', { timeout: 15000 });
     await new Promise(r => setTimeout(r, 5000));
     await saveUpdatedStorageState(context);
@@ -385,8 +385,8 @@ export async function loginAndSaveSession(email: string, pass: string) {
 
   try {
     await page.goto('https://mechacomic.jp/session/input', { waitUntil: 'domcontentloaded' });
-    
-    // Tenta encontrar o campo de email/login
+
+    // Tenta encontrar o campo de email/logar
     const emailField = page.locator('input[type="email"], input[name="email"], input[name="login_id"]').first();
     if (await emailField.count() === 0) throw new Error("Campo de email não encontrado.");
     await emailField.fill(email);
@@ -395,20 +395,20 @@ export async function loginAndSaveSession(email: string, pass: string) {
     const passField = page.locator('input[type="password"], input[name="password"]').first();
     if (await passField.count() === 0) throw new Error("Campo de senha não encontrado.");
     await passField.fill(pass);
-    
+
     // Clica no botão de submit do form de login
     const submitBtn = page.locator('#login_form input[type="submit"], input[name="commit"][value="ログイン"]').first();
     if (await submitBtn.count() === 0) throw new Error("Botão de login não encontrado.");
-    
+
     await Promise.all([
-      page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 15000 }).catch(() => {}),
+      page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 15000 }).catch(() => { }),
       submitBtn.click()
     ]);
 
     // Espera para ver se redirecionou
     await page.waitForTimeout(2000);
     const url = page.url();
-    
+
     if (url.includes('session') || url.includes('login')) {
       // Se continuou na tela de login, tenta capturar a mensagem de erro
       const errorMsg = await page.locator('.c-alert, .error, .p-login_error, .c-text-error, .p-passwordContent p').innerText().catch(() => null);
@@ -445,7 +445,7 @@ export async function getAccountInfo() {
     await page.waitForTimeout(1000);
 
     const currentUrl = page.url();
-    if (currentUrl.includes('/session/') || currentUrl.includes('/login')) {
+    if (currentUrl.includes('/session/') || currentUrl.includes('/logar')) {
       console.warn("⚠️ [getAccountInfo] Sessão expirou ou foi encerrada no MechaComic.");
       return null;
     }
