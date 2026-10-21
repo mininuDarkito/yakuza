@@ -3,15 +3,14 @@
 import { useState, Suspense } from "react";
 import { signIn } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
-import { 
-  ShieldCheck, 
-  ArrowRight, 
-  Loader2, 
-  Lock, 
-  Sparkles, 
+import {
+  ShieldCheck,
+  ArrowRight,
+  Loader2,
+  Lock,
   AlertCircle,
   Zap,
-  CheckCircle2
+  CheckCircle2,
 } from "lucide-react";
 
 function LoginContent() {
@@ -26,7 +25,7 @@ function LoginContent() {
   };
 
   return (
-    <div 
+    <div
       className="min-h-screen w-full flex items-center justify-center p-4 sm:p-6 relative overflow-hidden bg-[#09080e] text-white selection:bg-purple-500 selection:text-white"
       style={{
         minHeight: "100vh",
@@ -39,21 +38,21 @@ function LoginContent() {
       }}
     >
       {/* GLOWS E GRADIENTES DE FUNDO */}
-      <div 
-        className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-purple-600/15 rounded-full blur-[140px] pointer-events-none -z-10" 
+      <div
+        className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-purple-600/15 rounded-full blur-[140px] pointer-events-none -z-10"
         style={{ pointerEvents: "none" }}
       />
-      <div 
-        className="absolute bottom-10 right-1/4 w-[350px] h-[350px] bg-emerald-500/10 rounded-full blur-[120px] pointer-events-none -z-10" 
+      <div
+        className="absolute bottom-10 right-1/4 w-[350px] h-[350px] bg-emerald-500/10 rounded-full blur-[120px] pointer-events-none -z-10"
         style={{ pointerEvents: "none" }}
       />
-      <div 
-        className="absolute top-10 left-10 w-[300px] h-[300px] bg-blue-600/10 rounded-full blur-[100px] pointer-events-none -z-10" 
+      <div
+        className="absolute top-10 left-10 w-[300px] h-[300px] bg-blue-600/10 rounded-full blur-[100px] pointer-events-none -z-10"
         style={{ pointerEvents: "none" }}
       />
 
       {/* CARD PRINCIPAL DE LOGIN */}
-      <div 
+      <div
         className="w-full max-w-md rounded-3xl bg-zinc-950/80 border border-white/10 backdrop-blur-2xl p-6 sm:p-8 shadow-[0_0_60px_rgba(124,58,237,0.12)] relative z-10 transition-all duration-300"
         style={{
           width: "100%",
