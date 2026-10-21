@@ -1,10 +1,11 @@
 import axios from "axios";
 import { prisma } from "./db";
+import { getSetting } from "./settings";
 import logsConfig from "../logs_config.json";
 import mechacomicLogsConfig from "../mechacomic_logs_config.json";
 
 async function sendDiscordEmbed(channelId: string, embed: Record<string, any>) {
-  const token = process.env.DISCORD_BOT_TOKEN;
+  const token = await getSetting("DISCORD_BOT_TOKEN");
   if (!token || !channelId) {
     console.error("Discord token or channel ID missing for logging.");
     return;
@@ -37,7 +38,7 @@ export async function sendVendaLog(vendaData: {
   precoUnitario: number;
   dataVenda?: Date | string;
 }) {
-  const token = process.env.DISCORD_BOT_TOKEN;
+  const token = await getSetting("DISCORD_BOT_TOKEN");
   const channelId = logsConfig.logChannelId;
 
   if (!token || !channelId) {

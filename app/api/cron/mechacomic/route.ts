@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { getSetting } from '@/lib/settings';
 import { getSeriesInfo } from '@/lib/mechacomic/engine';
 import { GoogleDriveUploader } from '@/lib/mechacomic/drive';
 
@@ -9,7 +10,8 @@ import { GoogleDriveUploader } from '@/lib/mechacomic/drive';
 export async function POST(req: Request) {
   try {
     const secret = req.headers.get('x-cron-secret');
-    if (!secret || secret !== process.env.CRON_SECRET) {
+    const cronSecret = await getSetting('CRON_SECRET');
+    if (!secret || !cronSecret || secret !== cronSecret) {
       return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
     }
 
@@ -171,7 +173,8 @@ export async function POST(req: Request) {
 export async function GET(req: Request) {
   try {
     const secret = req.headers.get('x-cron-secret');
-    if (!secret || secret !== process.env.CRON_SECRET) {
+    const cronSecret = await getSetting('CRON_SECRET');
+    if (!secret || !cronSecret || secret !== cronSecret) {
       return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
     }
 

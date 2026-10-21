@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { getSettings } from "@/lib/settings";
 
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
-    const guildId =
-      process.env.DISCORD_YAKUZA || process.env.NEXT_PUBLIC_DISCORD_GUILD_ID;
-    const botToken = process.env.DISCORD_BOT_TOKEN; // Certifique-se de adicionar no .env
+    const { DISCORD_YAKUZA: guildId, DISCORD_BOT_TOKEN: botToken } =
+      await getSettings(["DISCORD_YAKUZA", "DISCORD_BOT_TOKEN"] as const);
 
     // 1. Verificação de Sessão e Configuração
     if (!session || !session.accessToken) {
@@ -19,7 +19,7 @@ export async function GET() {
 
     if (!guildId || !botToken) {
       console.error(
-        "❌ [API_DISCORD]: Configurações do servidor Discord faltando no .env (DISCORD_YAKUZA ou NEXT_PUBLIC_DISCORD_GUILD_ID) e/ou DISCORD_BOT_TOKEN"
+        "❌ [API_DISCORD]: ID do servidor Discord (DISCORD_YAKUZA) e/ou Bot Token (DISCORD_BOT_TOKEN) não configurados em Admin › Configurações"
       );
       return NextResponse.json(
         { error: "Erro de configuração do servidor Discord." },
@@ -63,9 +63,6 @@ export async function GET() {
       console.error("❌ [API_DISCORD]: Erro ao buscar canais do servidor Discord via Bot", {
         errorData,
         guildId,
-        guildIdSource: process.env.DISCORD_YAKUZA
-          ? "DISCORD_YAKUZA"
-          : "NEXT_PUBLIC_DISCORD_GUILD_ID",
       });
       return NextResponse.json(
         { error: "O Bot não conseguiu ler os canais do servidor Discord configurado." },

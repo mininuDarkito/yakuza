@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { getSetting } from '@/lib/settings';
 import axios from 'axios';
 
 export async function POST(req: Request) {
@@ -30,9 +31,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Nenhum grupo vinculado a esta série. Vincule ao menos um grupo primeiro.' }, { status: 400 });
     }
 
-    const token = process.env.DISCORD_BOT_TOKEN;
+    const token = await getSetting('DISCORD_BOT_TOKEN');
     if (!token) {
-      return NextResponse.json({ error: 'DISCORD_BOT_TOKEN não configurado no servidor.' }, { status: 500 });
+      return NextResponse.json({ error: 'Bot Token do Discord não configurado (Admin › Configurações).' }, { status: 500 });
     }
 
     // Busca grupos no banco

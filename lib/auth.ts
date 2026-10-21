@@ -1,18 +1,21 @@
 import { NextAuthOptions } from "next-auth"
 import DiscordProvider from "next-auth/providers/discord"
 import { prisma } from "./db"
+import { getSettings } from "./settings"
 
-export const authOptions: NextAuthOptions = {
+function discordProvider(clientId: string, clientSecret: string) {
+  return DiscordProvider({
+    clientId,
+    clientSecret,
+    issuer: "https://discord.com",
+    authorization: { params: { scope: 'identify email guilds' } },
+    checks: ['state'],
+  })
+}
+
+const baseAuthOptions: Omit<NextAuthOptions, "providers"> = {
+  // NEXTAUTH_SECRET continua no .env (assina a sessão e protege os segredos do banco)
   secret: process.env.NEXTAUTH_SECRET,
-  providers: [
-    DiscordProvider({
-      clientId: process.env.DISCORD_CLIENT_ID!,
-      clientSecret: process.env.DISCORD_CLIENT_SECRET!,
-      issuer: "https://discord.com",
-      authorization: { params: { scope: 'identify email guilds' } },
-      checks: ['state'],
-    }),
-  ],
 
   callbacks: {
     async signIn({ account, profile }) {
@@ -121,6 +124,40 @@ export const authOptions: NextAuthOptions = {
 
   pages: { signIn: "/logar" },
   session: { strategy: "jwt" },
+}
+
+/**
+ * Opções usadas por `getServerSession(authOptions)` em todo o projeto.
+ * Ler/validar a sessão só precisa do `secret` e dos callbacks, então o provider
+ * aqui não carrega credenciais.
+ */
+export const authOptions: NextAuthOptions = {
+  ...baseAuthOptions,
+  providers: [discordProvider("", "")],
+}
+
+/**
+ * Opções completas para o fluxo de login (/api/auth/[...nextauth]).
+ * O Client ID/Secret do Discord vêm do banco (Admin › Configurações).
+ */
+export async function getAuthOptions(): Promise<NextAuthOptions> {
+  const { DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET } = await getSettings([
+    "DISCORD_CLIENT_ID",
+    "DISCORD_CLIENT_SECRET",
+  ] as const)
+
+  if (!DISCORD_CLIENT_ID || !DISCORD_CLIENT_SECRET) {
+    console.error(
+      "❌ [AUTH]: Client ID/Secret do Discord não configurados (Admin › Configurações).",
+    )
+  }
+
+  return {
+    ...baseAuthOptions,
+    providers: [
+      discordProvider(DISCORD_CLIENT_ID ?? "", DISCORD_CLIENT_SECRET ?? ""),
+    ],
+  }
 }
 
 declare module "next-auth" {

@@ -3,16 +3,25 @@ export async function register() {
   if (process.env.NEXT_RUNTIME === 'nodejs') {
     const cron = (await import('node-cron')).default;
 
+    // Fuso horário do processo (configurado em Admin › Configurações)
+    try {
+      const { applyTimezoneFromSettings } = await import('./lib/settings');
+      await applyTimezoneFromSettings();
+    } catch (err) {
+      console.error('[Settings] Não foi possível aplicar o fuso horário salvo no banco:', err);
+    }
+
     // 0 15 * * * = Todo dia às 15:00 UTC
     //              = 12:00 Brasília (UTC-3)
     //              = 11:00 usuário (UTC-4)
     //              = 00:00 Japão (UTC+9) — horário de lançamento das séries
     cron.schedule('0 15 * * *', async () => {
       const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
-      const secret = process.env.CRON_SECRET;
+      const { getSetting } = await import('./lib/settings');
+      const secret = await getSetting('CRON_SECRET');
 
       if (!secret) {
-        console.error('[CronScheduler] CRON_SECRET não configurado! Sync automático não será executado.');
+        console.error('[CronScheduler] CRON_SECRET não configurado (Admin › Configurações)! Sync automático não será executado.');
         return;
       }
 

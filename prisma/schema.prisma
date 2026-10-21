@@ -268,3 +268,18 @@ model mecha_config {
 
   @@map("mecha_config")
 }
+
+// ==========================================
+// CONFIGURAÇÕES DO SISTEMA (painel Admin › Configurações)
+// Segredos ficam criptografados em `value` (is_secret = true).
+// A tabela é criada automaticamente por lib/settings.ts.
+// ==========================================
+
+model app_settings {
+  key        String   @id
+  value      String
+  is_secret  Boolean  @default(false)
+  updated_at DateTime @default(now()) @db.Timestamptz(6)
+
+  @@map("app_settings")
+}

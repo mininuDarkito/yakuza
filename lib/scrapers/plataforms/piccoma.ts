@@ -2,14 +2,12 @@ import axios from 'axios';
 import * as cheerio from 'cheerio';
 import { HttpsProxyAgent } from 'https-proxy-agent';
 import { ScrapeResult } from '../index';
+import { getProxyConfig } from '../../settings';
 
 async function imageToProcessedBase64(url: string): Promise<string | null> {
     try {
-        // --- CONFIGURAÇÃO DA PROXY (Puxando do seu .env) ---
-        const PROXY_USER = process.env.PROXY_USER || "";
-        const PROXY_PASS = process.env.PROXY_PASS || "";
-        const PROXY_HOST = process.env.PROXY_HOST || "";
-        const PROXY_PORT = process.env.PROXY_PORT || "";
+        // --- CONFIGURAÇÃO DA PROXY (Admin › Configurações) ---
+        const { PROXY_USER, PROXY_PASS, PROXY_HOST, PROXY_PORT } = await getProxyConfig();
 
         const proxyUrl = `http://${PROXY_USER}:${PROXY_PASS}@${PROXY_HOST}:${PROXY_PORT}`;
         const agent = new HttpsProxyAgent(proxyUrl);
@@ -41,10 +39,7 @@ async function imageToProcessedBase64(url: string): Promise<string | null> {
 
 export async function scrape(url: string): Promise<ScrapeResult> {
     // Configura o agente de Proxy para a navegação inicial
-    const PROXY_USER = process.env.PROXY_USER || "";
-    const PROXY_PASS = process.env.PROXY_PASS || "";
-    const PROXY_HOST = process.env.PROXY_HOST || "";
-    const PROXY_PORT = process.env.PROXY_PORT || "";
+    const { PROXY_USER, PROXY_PASS, PROXY_HOST, PROXY_PORT } = await getProxyConfig();
     const agent = new HttpsProxyAgent(`http://${PROXY_USER}:${PROXY_PASS}@${PROXY_HOST}:${PROXY_PORT}`);
 
     // Headers para parecer um japonês real

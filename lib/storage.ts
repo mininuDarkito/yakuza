@@ -1,12 +1,26 @@
 import { v2 as cloudinary } from 'cloudinary';
 import crypto from 'crypto';
+import { getSetting } from './settings';
 
-// Configuração opcional via variável de ambiente CLOUDINARY_URL
+// A configuração do Cloudinary fica no banco (Admin › Configurações, chave CLOUDINARY_URL)
 // Formato esperado: cloudinary://API_KEY:API_SECRET@CLOUD_NAME
-if (process.env.CLOUDINARY_URL) {
+async function configureCloudinary(): Promise<boolean> {
+  const url = await getSetting('CLOUDINARY_URL');
+  if (!url) return false;
+
+  const match = url.match(/^cloudinary:\/\/([^:\s]+):([^@\s]+)@([^\s/]+)$/);
+  if (!match) {
+    console.error("❌ CLOUDINARY_URL inválida. Formato esperado: cloudinary://API_KEY:API_SECRET@CLOUD_NAME");
+    return false;
+  }
+
   cloudinary.config({
-    secure: true
+    cloud_name: match[3],
+    api_key: match[1],
+    api_secret: match[2],
+    secure: true,
   });
+  return true;
 }
 
 /**
@@ -17,7 +31,7 @@ export async function uploadImage(imageSource: string | null, preferredName?: st
   if (!imageSource) return null;
 
   // Se não houver configuração do Cloudinary, mantém como está (Base64 ou URL original)
-  if (!process.env.CLOUDINARY_URL) {
+  if (!(await configureCloudinary())) {
     console.warn("⚠️ Cloudinary não configurado. Mantendo imagem original.");
     return imageSource;
   }

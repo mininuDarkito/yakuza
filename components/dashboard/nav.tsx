@@ -24,7 +24,8 @@ import {
   ShieldCheck,
   Settings, Book,
   Users,
-  Bot
+  Bot,
+  KeyRound
 } from "lucide-react"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTrigger } from "@/components/ui/sheet"
 import { useState, useEffect } from "react"
@@ -175,6 +176,15 @@ export function DashboardNav({ user }: NavProps) {
                     <Link href="/dashboard/admin">
                       <ShieldCheck className="mr-2 h-4 w-4" />
                       Painel de Admin
+                    </Link>
+                  </DropdownMenuItem>
+                )}
+
+                {user.role === 'admin' && (
+                  <DropdownMenuItem asChild className="cursor-pointer font-black uppercase italic text-[10px] text-primary focus:bg-primary/5">
+                    <Link href="/dashboard/admin/configuracoes">
+                      <KeyRound className="mr-2 h-4 w-4" />
+                      Configurações do Sistema
                     </Link>
                   </DropdownMenuItem>
                 )}
