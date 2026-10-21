@@ -40,15 +40,44 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{
             __html: `
               (function() {
+                // Remove o parâmetro de cache _r da URL após carregar com sucesso
+                try {
+                  if (window.location.search.indexOf('_r=') !== -1) {
+                    var cleanUrl = new URL(window.location.href);
+                    cleanUrl.searchParams.delete('_r');
+                    window.history.replaceState({}, '', cleanUrl.pathname + cleanUrl.search + cleanUrl.hash);
+                  }
+                } catch(e) {}
+
+                function forceReload() {
+                  try {
+                    if ('caches' in window) {
+                      caches.keys().then(function(names) {
+                        names.forEach(function(n) { caches.delete(n); });
+                      });
+                    }
+                  } catch(e) {}
+                  var url = new URL(window.location.href);
+                  url.searchParams.set('_r', Date.now().toString());
+                  window.location.replace(url.toString());
+                }
+
                 function tryReload() {
-                  var key = 'chunk_reload_ts';
+                  var key = 'chunk_reload_attempts';
+                  var tsKey = 'chunk_reload_ts';
                   var now = Date.now();
-                  var last = parseInt(sessionStorage.getItem(key) || '0', 10);
-                  if (now - last > 10000) {
-                    sessionStorage.setItem(key, now.toString());
-                    window.location.reload();
+                  var last = parseInt(sessionStorage.getItem(tsKey) || '0', 10);
+                  var attempts = parseInt(sessionStorage.getItem(key) || '0', 10);
+                  if (now - last > 30000) {
+                    attempts = 0;
+                  }
+                  if (attempts < 2) {
+                    sessionStorage.setItem(key, (attempts + 1).toString());
+                    sessionStorage.setItem(tsKey, now.toString());
+                    forceReload();
                   }
                 }
+
                 window.addEventListener('error', function(e) {
                   var msg = e && (e.message || '');
                   var target = e && e.target;
@@ -59,6 +88,7 @@ export default function RootLayout({
                     tryReload();
                   }
                 }, true);
+
                 window.addEventListener('unhandledrejection', function(e) {
                   var reason = e && e.reason;
                   var msg = (reason && (reason.message || reason.name || reason.toString())) || '';
@@ -83,7 +113,7 @@ export default function RootLayout({
             <Toaster />
           </ThemeProvider>
         </SessionProvider>
-        <Analytics />
+        {process.env.VERCEL && <Analytics />}
       </body>
     </html>
   )
