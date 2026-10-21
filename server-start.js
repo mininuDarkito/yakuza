@@ -2,6 +2,10 @@ const fs = require('fs');
 const path = require('path');
 const { spawn } = require('child_process');
 
+// Forçar HOSTNAME 0.0.0.0 para garantir que escute em todas as interfaces de rede no Docker
+process.env.HOSTNAME = '0.0.0.0';
+process.env.PORT = process.env.PORT || '3000';
+
 // 1. Em containers Docker standalone, o server.js fica na raiz (/app/server.js)
 const rootServer = path.join(__dirname, 'server.js');
 
