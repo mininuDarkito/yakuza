@@ -13,7 +13,7 @@ export async function PUT(
   {
     params,
   }: {
-    params: { id: string; vendedor_id: string }
+    params: Promise<{ id: string; vendedor_id: string }>
   }
 ) {
   try {

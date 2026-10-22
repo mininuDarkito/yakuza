@@ -5,6 +5,10 @@ import { ThemeProvider } from '@/components/theme-provider' // Importação do n
 import { Toaster } from '@/components/ui/sonner'
 import './globals.css'
 
+// HTML sempre renderizado sob demanda: evita páginas prerenderizadas (ex.: /logar) com
+// Cache-Control de 1 ano apontando para chunks de um deploy antigo (causa de ChunkLoadError/404).
+export const dynamic = 'force-dynamic'
+
 export const metadata: Metadata = {
   title: 'Yakuza Raw',
   description: 'Gerencie suas vendas, grupos e produtos',

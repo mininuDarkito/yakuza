@@ -28,8 +28,12 @@ RUN npx prisma generate
 # Desativa telemetria do Next.js durante o build
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# Build do projeto (Standalone mode configurado no next.config.js)
-RUN pnpm next build
+# ID único do deploy (proteção contra version skew / chunks 404 após redeploy).
+# Passe --build-arg NEXT_DEPLOYMENT_ID=$(git rev-parse --short HEAD) no CI; sem isso usa o timestamp.
+ARG NEXT_DEPLOYMENT_ID
+
+# Build do projeto (Standalone mode configurado no next.config.mjs)
+RUN export NEXT_DEPLOYMENT_ID="${NEXT_DEPLOYMENT_ID:-build-$(date +%s)}" && pnpm next build
 
 # Etapa 3: Runner (Imagem final de produção)
 # Usamos a imagem oficial do Playwright para garantir que todos os drivers e libs do Linux estejam lá
@@ -48,6 +52,7 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder /app/server-start.js ./server-start.js
+COPY --from=builder /app/healthcheck.js ./healthcheck.js
 
 # Garante que o Prisma Engine esteja disponível
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
@@ -58,6 +63,10 @@ EXPOSE 3000
 
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
+
+# Falha se o servidor subir sem os assets estáticos (sintoma: 404 em /_next/static)
+HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
+  CMD ["node", "healthcheck.js"]
 
 # O Playwright já vem instalado na imagem base noble, 
 # mas precisamos garantir que os navegadores estejam no caminho certo para o usuário nextjs

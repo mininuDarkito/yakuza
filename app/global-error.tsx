@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
+import { hardReload, isChunkLoadError, tryAutoReload } from '@/lib/chunk-recovery'
 
 export default function GlobalError({
   error,
@@ -10,16 +11,7 @@ export default function GlobalError({
   reset: () => void
 }) {
   useEffect(() => {
-    const msg = error?.message || ''
-    if (msg.includes('ChunkLoadError') || msg.includes('Failed to load chunk')) {
-      const key = 'chunk_reload_ts'
-      const now = Date.now()
-      const last = parseInt(sessionStorage.getItem(key) || '0', 10)
-      if (now - last > 10000) {
-        sessionStorage.setItem(key, now.toString())
-        window.location.reload()
-      }
-    }
+    if (isChunkLoadError(error?.message)) tryAutoReload()
   }, [error])
 
   return (
@@ -35,7 +27,7 @@ export default function GlobalError({
           </p>
           <div className="flex gap-3 justify-center pt-2">
             <button
-              onClick={() => window.location.reload()}
+              onClick={() => hardReload()}
               className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-medium transition-colors"
             >
               Recarregar Página

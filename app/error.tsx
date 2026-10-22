@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { RefreshCw, AlertTriangle, Home } from 'lucide-react'
+import { hardReload, isChunkLoadError, tryAutoReload } from '@/lib/chunk-recovery'
 
 export default function ErrorBoundary({
   error,
@@ -11,50 +12,18 @@ export default function ErrorBoundary({
   reset: () => void
 }) {
   const [isReloading, setIsReloading] = useState(false)
-  const msg = error?.message || ''
-  const isChunkError =
-    msg.includes('ChunkLoadError') ||
-    msg.includes('Failed to load chunk') ||
-    msg.includes('Loading chunk') ||
-    (msg.includes('Failed to fetch') && msg.includes('chunk'))
+  const isChunkError = isChunkLoadError(error?.message)
 
   const forceHardReload = () => {
     setIsReloading(true)
-    try {
-      if (typeof window !== 'undefined' && 'caches' in window) {
-        caches.keys().then((names) => {
-          names.forEach((name) => caches.delete(name))
-        }).catch(() => {})
-      }
-    } catch {
-      // Ignora erro de API de cache
-    }
-
-    // Força recarregamento quebrando o cache via query param
-    const url = new URL(window.location.href)
-    url.searchParams.set('_r', Date.now().toString())
-    window.location.replace(url.toString())
+    hardReload()
   }
 
   useEffect(() => {
     console.error('[Yakuza Error Boundary]:', error)
 
-    if (isChunkError) {
-      const key = 'chunk_reload_attempts'
-      const tsKey = 'chunk_reload_ts'
-      const now = Date.now()
-      const last = parseInt(sessionStorage.getItem(tsKey) || '0', 10)
-      const attempts = parseInt(sessionStorage.getItem(key) || '0', 10)
-
-      // Se passou mais de 30 segundos da última tentativa, reseta o contador
-      const currentAttempts = now - last > 30000 ? 0 : attempts
-
-      if (currentAttempts < 2) {
-        sessionStorage.setItem(key, (currentAttempts + 1).toString())
-        sessionStorage.setItem(tsKey, now.toString())
-        forceHardReload()
-      }
-    }
+    // Limite de tentativas compartilhado (evita loop infinito de reload)
+    if (isChunkError && tryAutoReload()) setIsReloading(true)
   }, [error, isChunkError])
 
   return (

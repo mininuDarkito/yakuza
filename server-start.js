@@ -15,6 +15,16 @@ const standaloneServer = path.join(__dirname, '.next', 'standalone', 'server.js'
 if (fs.existsSync(rootServer)) {
   require(rootServer);
 } else if (fs.existsSync(standaloneServer)) {
+  // O standalone NÃO inclui .next/static nem public: sem isso todo chunk responde 404.
+  // Garante (e mantém sincronizado com o BUILD_ID atual) antes de subir o servidor.
+  try {
+    const { syncStandaloneAssets } = require('./scripts/sync-standalone');
+    syncStandaloneAssets({ log: console.log });
+  } catch (err) {
+    console.error('[server-start] Falha ao sincronizar assets estáticos:', err);
+  }
+  // O server.js do standalone resolve caminhos relativos ao cwd.
+  process.chdir(path.dirname(standaloneServer));
   require(standaloneServer);
 } else {
   const isWin = process.platform === 'win32';

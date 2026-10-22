@@ -1,0 +1,14 @@
+node_modules
+.next
+.git
+.gitignore
+.vscode
+scratch
+*.tsbuildinfo
+npm-debug.log*
+
+# Segredos que nunca devem entrar na imagem
+credentials.json
+token.json
+auth.json
+auth.json.lock
