@@ -90,9 +90,12 @@ export default function MechaComicDashboard() {
       const data = await res.json();
       if (res.ok) {
         setSeriesList(Array.isArray(data) ? data : (data.series || []));
+      } else {
+        toast.error(data.error || "Erro ao carregar séries.");
       }
     } catch (e) {
-      toast.error("Erro ao carregar séries.");
+      console.error("Erro na requisição de séries:", e);
+      toast.error("Erro ao carregar séries (falha de comunicação com o servidor).");
     } finally {
       setFetching(false);
     }

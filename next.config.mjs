@@ -12,11 +12,13 @@ const NO_STORE = 'no-store, no-cache, must-revalidate, max-age=0'
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'standalone',
+  // Pacotes externos que possuem binários ou arquivos não-JS (ex: browsers.json no Playwright)
+  // Devem ser mantidos como pacotes externos e não empacotados pelo bundler
+  serverExternalPackages: ['playwright', 'playwright-core'],
   // Identifica o deploy: o Next anexa ?dpl=<id> nos assets e, se cliente e servidor
   // forem de versões diferentes, força navegação "hard" em vez de quebrar com chunk 404.
   // Gerado por scripts/build.js (ou defina NEXT_DEPLOYMENT_ID no CI/Docker).
   ...(process.env.NEXT_DEPLOYMENT_ID ? { deploymentId: process.env.NEXT_DEPLOYMENT_ID } : {}),
-  // experimental option removed as instrumentation is enabled by default in Next.js 16
   typescript: {
     ignoreBuildErrors: true,
   },

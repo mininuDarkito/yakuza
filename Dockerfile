@@ -22,9 +22,6 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Gera o Prisma Client
-RUN npx prisma generate
-
 # Desativa telemetria do Next.js durante o build
 ENV NEXT_TELEMETRY_DISABLED=1
 
@@ -32,8 +29,8 @@ ENV NEXT_TELEMETRY_DISABLED=1
 # Passe --build-arg NEXT_DEPLOYMENT_ID=$(git rev-parse --short HEAD) no CI; sem isso usa o timestamp.
 ARG NEXT_DEPLOYMENT_ID
 
-# Build do projeto (Standalone mode configurado no next.config.mjs)
-RUN export NEXT_DEPLOYMENT_ID="${NEXT_DEPLOYMENT_ID:-build-$(date +%s)}" && pnpm next build
+# Build do projeto usando o script otimizado (gera prisma, compila Next e sincroniza static + playwright)
+RUN export NEXT_DEPLOYMENT_ID="${NEXT_DEPLOYMENT_ID:-build-$(date +%s)}" && pnpm run build
 
 # Etapa 3: Runner (Imagem final de produção)
 # Usamos a imagem oficial do Playwright para garantir que todos os drivers e libs do Linux estejam lá
@@ -54,8 +51,10 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder /app/server-start.js ./server-start.js
 COPY --from=builder /app/healthcheck.js ./healthcheck.js
 
-# Garante que o Prisma Engine esteja disponível
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+# Garante que o Prisma Engine e módulos externos (Playwright) estejam disponíveis no runner
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/playwright-core ./node_modules/playwright-core
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/playwright ./node_modules/playwright
 
 USER nextjs
 
